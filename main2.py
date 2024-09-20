@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from function import camera  # カメラを使う
 from function import fish_contour  # さかなの輪郭を使った処理(抽出・部位推定)
 from function import createobj as obj  # 3DOBJを作る
-from function import bake_texture as texture # UV関係を作る
+from function import make_texture as texture # UV関係を作る
 from function import settimer  # 時間測定
 from function import painttool as paint  # ペイントツール
 from function import module # 共通するモジュール
@@ -26,6 +26,7 @@ from function import module # 共通するモジュール
 g_fishNum = 1
 g_templateNum = 1
 g_upnum = 1
+g_templateFlag = False
 
 def addTemplateNum(addNum = 1):
     """テンプレートを加算する
@@ -43,11 +44,12 @@ def addTemplateNum(addNum = 1):
 #* サーバー関係
 #* ======================================================================================== 
 #! 初期設定
-def serverStart(ip = '150.89.239.35'):
+def serverStart(ip = '150.89.239.35',flag=True):
     """サーバー起動関係
 
     Args:
         ip (str): サーバのIPアドレス. Defaultは '150.89.239.35'.
+        flag : デバッグモードを使用するか判定するフラグ
     """
     # 全く意味がないアスキーアートを表示する
     print(Fore.LIGHTCYAN_EX + '               __   __')
@@ -64,11 +66,14 @@ def serverStart(ip = '150.89.239.35'):
 
     print(Fore.LIGHTYELLOW_EX + '以下のURLにログインしてください')
     print(Fore.LIGHTYELLOW_EX + "-> http://150.89.239.35:5000")
+    print(Fore.LIGHTYELLOW_EX + '')
+    print(Fore.LIGHTYELLOW_EX + '大工大の場合は以下のURLにログインしてください')
+    print(Fore.LIGHTYELLOW_EX + "-> http://172.21.1.43:5000")
     
     print(Fore.WHITE)
     print(Style.RESET_ALL+"",end="")
     
-    app.run(host=ip, port=5000, debug=False, use_reloader=False, threaded = False)
+    app.run(host=ip, port=5000, debug=flag, use_reloader=False, threaded = False)
 
 #! 最新の魚を返す
 @app.route('/download/new', methods=['GET'])
@@ -116,8 +121,11 @@ def regitFish():
     """
     global g_fishNum
     global g_templateNum
+    global g_templateFlag
     
-    file,flag = module.regitFishPath(g_fishNum,g_templateNum)
+    module.printTerminal("魚を生成")
+    
+    file,g_templateFlag = module.regitFishPath(g_fishNum,g_templateNum)
     print(file)
     
     # カメラ起動->画像入手
@@ -162,7 +170,7 @@ def regitFish():
     texture.makeUVs(meshpath,onlyFishImg,meshpath,file)
     
     # flagがTrueならテンプレートを使用
-    if flag == True:
+    if g_templateFlag == True:
         # templateに加算する
         addTemplateNum()
     else:
@@ -170,23 +178,17 @@ def regitFish():
         
     # 魚をzip化する
     module.printTerminal("魚をzip化(送信用フォルダ化)",2)
-    zipFish()
+    zipFish(meshpath,"./output/onlyfish/up2down_" + file + ".png")
     
     return download_file_new()
 
 #! 魚をzip化する
-def zipFish():
+def zipFish(fishPath,pngPath):
     """魚をZIP化します
     """
-    global g_fishNum
-    global g_templateNum
     global g_upnum
     
     # パスを取得
-    fishNum = g_fishNum - 1
-    templateNum = g_templateNum -1
-    fishPath = module.getFish(fishNum,templateNum)
-    pngPath = module.getImgFish(fishNum,templateNum)
     zipPath = f"./upload/{g_upnum}.zip"
     g_upnum += 1
     
@@ -269,8 +271,9 @@ def EndOfProgram():
 
 def main():
     """すべての始まり"""
-    debug = False
-    if debug:
+    debug = True
+
+    if not debug:
         import logging
         log = logging.getLogger('werkzeug')
         log.disabled = True
@@ -285,7 +288,7 @@ def main():
     module.initmain()
     
     # サーバ起動
-    serverStart('0.0.0.0')
+    serverStart('0.0.0.0',debug)
     
     # 削除関係
     if not debug:

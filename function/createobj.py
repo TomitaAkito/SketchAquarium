@@ -205,7 +205,7 @@ def printAry(mesh):
     print(vertex_colors)
 
 def createMesh(points_3d):
-    """点群からメッシュを作る
+    """点群からメッシュを手動で作成
 
     Args:
         points_3d : 座標
@@ -230,6 +230,34 @@ def createMesh(points_3d):
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
             point_cloud, depth=9
         ) 
+
+    # faces = np.array([]).reshape(0, 3)  # 初期化
+
+    # # points_3dからx, y, z座標を抽出
+    # x = points_3d[:, 0]
+    # y = points_3d[:, 1]
+    # z = points_3d[:, 2]
+
+    # maxfloor = max(z)  # 最大のz座標を取得
+    # corrh = 0.25  # 補正値
+
+    # # メッシュ生成のループ
+    # for i in range(len(z) - 1):
+    #     p1 = i  # 頂点インデックス
+    #     p2 = i + 1
+    #     p3 = i + 2
+    #     p4 = i + 3
+
+    #     if z[i + 1] != maxfloor + corrh:
+    #         faces = np.append(faces, np.array([[p1, p3, p4]]), axis=0)
+    #         faces = np.append(faces, np.array([[p1, p4, p2]]), axis=0)
+    #     else:
+    #         faces = np.append(faces, np.array([[p1, p2, p3]]), axis=0)
+
+    # # メッシュ生成
+    # mesh = o3d.geometry.TriangleMesh()
+    # mesh.vertices = o3d.utility.Vector3dVector(points_3d)
+    # mesh.triangles = o3d.utility.Vector3iVector(faces.astype(int))
 
     return mesh
 
