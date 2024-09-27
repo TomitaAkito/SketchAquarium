@@ -9,12 +9,12 @@ def load_obj(file_path):
         file_path (str): OBJのパス
 
     Returns:
-        List : vertex(頂点)
-        List : face(メッシュ)
+        Tuple: vertices(頂点), faces(メッシュ), normals(法線)
     """
     # 変数宣言
     vertices = []
     faces = []
+    normals = []
     
     # ファイルオープン
     with open(file_path, 'r') as file:
@@ -26,14 +26,18 @@ def load_obj(file_path):
             if line.startswith('v '):
                 vertices.append(list(map(float, line.strip().split()[1:])))
             
+            # 法線なら法線リストに追加
+            elif line.startswith('vn '):
+                normals.append(list(map(float, line.strip().split()[1:])))
+            
             # メッシュならメッシュリストに追加
             elif line.startswith('f '):
                 face = [list(map(int, v.split('/'))) for v in line.strip().split()[1:]]
                 faces.append(face)
                 
-    return np.array(vertices), faces
+    return np.array(vertices), faces, np.array(normals)
 
-def save_obj(file_path, vertices, faces, uvs):
+def save_obj(file_path, vertices, faces, uvs, normals=None):
     """objを出力する
 
     Args:
@@ -41,6 +45,7 @@ def save_obj(file_path, vertices, faces, uvs):
         vertices (List): 頂点
         faces (List): メッシュ
         uvs (List): UV
+        normals (List): 法線ベクトル
     """
     
     file = open(file_path, 'w')
@@ -60,6 +65,11 @@ def save_obj(file_path, vertices, faces, uvs):
         file.write("# -----Vertex-----\n")
         for vertex in vertices:
             file.write(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
+            
+        if normals is not None:
+            file.write("\n# -----Normals-----\n")
+            for normal in normals:
+                file.write(f"vn {normal[0]} {normal[1]} {normal[2]}\n")
             
         file.write("\n# -----UV-----\n")
         for uv in uvs:
@@ -104,13 +114,13 @@ def makeUVs(obj_file_path,image_file_path,output_file_path,file):
         file (str): 拡張子を除いたファイル名
     """
     # OBJファイルの読み込み
-    vertices, faces = load_obj(obj_file_path)
+    vertices, faces,normal = load_obj(obj_file_path)
 
     # UV座標の作成
     uvs = create_uvs_from_image(vertices, image_file_path)
 
     # 新しいOBJファイルの保存
-    save_obj(output_file_path, vertices, faces, uvs)
+    save_obj(output_file_path, vertices, faces, uvs,normal)
     
     # テクスチャ用に画像を反転
     img = cv2.imread(image_file_path)

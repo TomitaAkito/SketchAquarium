@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # 自作関数はそれぞれfunctionフォルダに格納しています
 from function import camera  # カメラを使う
-from function import fish_contour  # さかなの輪郭を使った処理(抽出・部位推定)
+from function import extraction_fish  # さかなの輪郭を使った処理(抽出・部位推定)
 from function import createobj as obj  # 3DOBJを作る
 from function import make_texture as texture # UV関係を作る
 from function import settimer  # 時間測定
@@ -54,7 +54,7 @@ def main():
         preproTimer = settimer.timer("-->Preprocessing-Timer")
 
         filePath = "./inputimg/" + file
-        img = fish_contour.findFishParts(filePath, file)
+        img = extraction_fish.findFishParts(filePath, file)
         
         import cv2
         cv2.imwrite("./static/images/new.png", img)

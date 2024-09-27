@@ -105,7 +105,7 @@ def createPointCloudFromIMG(image, height, maskimg):
                 top_he = base_he = height / 2
 
         # 条件に一致するとリストに加える
-        if x % 10 == 0 and y % 10 == 0:
+        if x % 5 == 0 and y % 5 == 0:
             base_points.append([x, y, base_he])
             top_points.append([x, y, top_he])
 
@@ -121,7 +121,8 @@ def createPointCloudFromIMG(image, height, maskimg):
     for contour in contour_points:
         for point in contour:
             x, y = point
-            side_points.append([x, y, height / 2])
+            if x % 2 == 0 and y % 2 == 0:
+                side_points.append([x, y, height / 2])
 
     # 3次元点群を連結
     points_3d = np.vstack((base_points, top_points, side_points))
@@ -173,7 +174,7 @@ def createMesh(points_3d):
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
             point_cloud, depth=9
         ) 
-
+    
     # faces = np.array([]).reshape(0, 3)  # 初期化
 
     # # points_3dからx, y, z座標を抽出
@@ -360,6 +361,90 @@ def disassemblyMesh(mesh):
     
     return vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors
 
+def computeNormals(vertices, faces):
+    """
+    頂点の法線ベクトルを計算する関数
+
+    Args:
+        vertices : 頂点座標のリストまたはnumpy配列
+        faces : 三角形メッシュの面情報（頂点インデックスのリスト）
+
+    Returns:
+        各頂点の法線ベクトルのリスト
+    """
+    # 頂点数と同じ長さのゼロベクトルを初期化
+    normals = np.zeros(vertices.shape, dtype=np.float32)
+    
+    # 各三角形の法線を計算して加算
+    for face in faces:
+        v0, v1, v2 = vertices[face[0]], vertices[face[1]], vertices[face[2]]
+        
+        # 三角形の辺ベクトルを計算
+        edge1 = v1 - v0
+        edge2 = v2 - v0
+        
+        # 外積を計算して三角形の法線を得る
+        face_normal = np.cross(edge1, edge2)
+        
+        # 各頂点に法線を加算
+        normals[face[0]] += face_normal
+        normals[face[1]] += face_normal
+        normals[face[2]] += face_normal
+
+    # 正規化して各頂点の法線を求める
+    norm = np.linalg.norm(normals, axis=1)
+    norm[norm == 0] = 1  # ゼロ除算を防ぐために0の要素を1に置換
+    normals /= norm[:, np.newaxis]
+
+    return normals
+
+
+def make_normals_outward(mesh):
+    """
+    すべての法線ベクトルを外向きに修正する関数。
+
+    Args:
+        mesh: Open3Dのメッシュオブジェクト
+
+    Returns:
+        法線ベクトルが外向きに修正されたメッシュオブジェクト
+    """
+    # メッシュの頂点座標を取得
+    vertices = np.asarray(mesh.vertices)
+    # メッシュの三角形（面）のインデックスを取得
+    triangles = np.asarray(mesh.triangles)
+    
+    # メッシュの重心を計算
+    mesh_center = vertices.mean(axis=0)
+    
+    # 三角形の法線を計算（法線が未計算の場合、これを実行）
+    mesh.compute_triangle_normals()
+    triangle_normals = np.asarray(mesh.triangle_normals)
+    
+    # 新しい三角形リストを作成（反転したものを保存）
+    for i, tri in enumerate(triangles):
+        # 各三角形の頂点の座標
+        tri_vertices = vertices[tri]
+        
+        # 三角形の重心を計算
+        tri_center = np.mean(tri_vertices, axis=0)
+        
+        # 三角形の重心からメッシュの重心に向かうベクトル
+        center_to_face = tri_center - mesh_center
+        
+        # 三角形の法線と重心からメッシュの重心へのベクトルが内積が負なら、法線が内側を向いている
+        if np.dot(triangle_normals[i], center_to_face) < 0:
+            # 法線が内向きの場合、三角形の頂点順序を反転して法線を修正
+            triangles[i] = triangles[i][::-1]
+    
+    # 修正した三角形のインデックスを更新
+    mesh.triangles = o3d.utility.Vector3iVector(triangles)
+    
+    # 法線を再計算
+    mesh.compute_vertex_normals()
+    
+    return mesh
+
 def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     """3Dオブジェクトを生成する
 
@@ -391,23 +476,22 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
 
     # マスクに対応する頂点および白領域外の頂点を除去
     mesh = removeVerticesByMaskAndBounds(mesh, mask, height)
+    
+    # すべての法線ベクトルを外向きに修正
+    mesh = make_normals_outward(mesh)
 
     # OBJとして出力
     vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors = disassemblyMesh(mesh)
+
+    # 法線ベクトルを手動で計算
+    normals = computeNormals(np.asarray(mesh.vertices), np.asarray(mesh.triangles))
+    print(normals)
+    
     meshpath = "./output/mesh/me_" + exFile + ".obj"
     saveOBJFile(meshpath, vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors)
     # o3d.io.write_triangle_mesh(meshpath, mesh)
-
-    # 平滑化モードがＯＮになっていたら
-    if smoothFlag:
-        print("\nsmooth")
-        # メッシュに対して平滑化
-        mesh_smooth = mesh.filter_smooth_laplacian(number_of_iterations=20)
-
-        # メッシュをファイルとして保存
-        vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors = disassemblyMesh(mesh_smooth)
-        meshpath = "./output/mesh/me_" + exFile + ".obj"
-        saveOBJFile(meshpath, vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors)
+    meshpath = "./output/mesh/me1_" + exFile + ".obj"
+    saveOBJFile(meshpath, vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors)
 
 if __name__ == "__main__":
     print('main.pyを実行してください')
