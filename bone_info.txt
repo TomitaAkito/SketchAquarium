@@ -1,0 +1,3 @@
+Bone: root, World Position: [300, 300, 50], Parent: None
+Bone: bone1, World Position: [450, 300, 50], Parent: root
+Bone: bone2, World Position: [500, 300, 50], Parent: bone1

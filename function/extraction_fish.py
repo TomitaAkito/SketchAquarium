@@ -4,14 +4,16 @@ import numpy as np
 
 
 def contourDetection(imgPath, filename):
-    """
-    画像から魚のみを抽出する
+    """画像から魚のみを抽出する
 
-    ------------------
-    【入力】
-    imgPath: 画像のpath
-    filename: ファイルの名前
+    Args:
+        imgPath: 画像のpath
+        filename: ファイルの名前
+
+    Returns:
+        img: 抽出した魚
     """
+
     # 画像をグレースケールで読み込む
     img = cv2.imread(imgPath, cv2.IMREAD_GRAYSCALE)
 
@@ -52,13 +54,15 @@ def contourDetection(imgPath, filename):
 
 
 def findWidestPoint(contour):
-    """
-    輪郭から最も幅の広い箇所のx座標を返す
+    """輪郭から最も幅の広い箇所のx座標を返す
 
-    ------------------
-    【入力】
-    contour: 輪郭(body)
+    Args:
+        contour: 輪郭(body)
+
+    Returns:
+        x : x座標
     """
+
     # 輪郭のx座標の最小値と最大値を取得
     x_min, x_max = contour[:, :, 0].min(), contour[:, :, 0].max()
 
@@ -67,13 +71,14 @@ def findWidestPoint(contour):
 
 
 def findNarrowestPointAfter(contour, start_x):
-    """
-    指定されたx座標以降の最も幅が狭くなる部分を特定する
+    """指定されたx座標以降の最も幅が狭くなる部分を特定する
 
-    ------------------
-    【入力】
-    contour: 輪郭(body)
-    start_x: x座標
+    Args:
+        contour: 輪郭(body)
+        start_x: x座標
+
+    Returns:
+        x : x座標
     """
 
     # 探索範囲をx座標の最大値までに設定
@@ -96,14 +101,16 @@ def findNarrowestPointAfter(contour, start_x):
 
 
 def findFishParts(imgPath, filename):
-    """
-    画像から魚のパーツを推定する
+    """画像から魚のパーツを推定する
 
-    ------------------
-    【入力】
-    imgPath: 画像のパス
-    filename: 保存する名前
+    Args:
+        imgPath: 画像のパス
+        filename: 保存する名前
+
+    Returns:
+        img : パーツ分割を施した画像を出力
     """
+
     # 拡張子を除くファイル名を作る
     exFile = os.path.splitext(filename)[0]
 

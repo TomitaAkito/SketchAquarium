@@ -25,7 +25,7 @@ def calcCenterX(points_3d_base):
 
     return result
 
-def createPointCloudFromIMG_2(image, height, maskimg):
+def createPointCloudFromIMG(image, height, maskimg):
     """画像から3D点群を生成する
 
     Args:
@@ -128,63 +128,6 @@ def createPointCloudFromIMG_2(image, height, maskimg):
 
     return points_3d
 
-def createPointCloudFromIMG(image, height):
-    """画像から3D点群を生成する
-
-    Args:
-        image : 入力画像
-        height : 押し出しの高さ
-    """
-
-    # 出力結果と画像の向きを一緒にさせるため上下反転
-    image = cv2.flip(image, 0)
-    h, w = image.shape
-
-    # 2次元の点群を生成
-    x, y = np.meshgrid(np.arange(w), np.arange(h))
-    z0 = np.zeros_like(x, dtype=np.float32)
-
-    # マスクを適用して点群をフィルタリング
-    mask = image > 0
-    points_3d_base = np.stack((x[mask], y[mask], z0[mask]), axis=-1)
-
-    # 上面と底面を生成
-    base_points = []
-    top_points = []
-
-    for point in points_3d_base:
-        # x,y座標を取得
-        x, y, _ = point
-        # 条件に一致するとリストに加える
-        if x % 10 == 0 and y % 10 == 0:
-            base_points.append([x, y, 0])
-            top_points.append([x, y, height])
-
-    # 輪郭の抽出
-    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    contour_points = []
-    for contour in contours:
-        contour = contour.squeeze()
-        if contour.ndim == 2:
-            contour_points.append(contour)
-
-    # 側面の点群生成
-    side_points = []
-    for contour in contour_points:
-        for point in contour:
-            x, y = point
-            for i in range(0, height + 1):
-                if i % 1 == 0:
-                    side_points.append([x, y, i])
-                    if i != height:
-                        side_points.append([x, y, i + 0.5])
-
-    side_points = np.array(side_points, dtype=np.float32)
-
-    # 3次元点群を連結
-    points_3d = np.vstack((base_points, top_points, side_points))
-
-    return points_3d
 
 def printAry(mesh):
     """meshを出力するだけ
@@ -322,14 +265,14 @@ def saveOBJFile(filePath, vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs,
     """OBJを出力する
 
     Args:
-        filePath (_type_): ファイルパス
-        vertices (_type_): 頂点
-        uvs (_type_): UV
-        normals (_type_): 法線
-        faceVertIDs (_type_): 面情報
-        uvIDs (_type_): UV
-        normalIDs (_type_): 法線ID
-        vertexColors (_type_): 頂点の色
+        filePath : ファイルパス
+        vertices : 頂点
+        uvs : UV
+        normals : 法線
+        faceVertIDs : 面情報
+        uvIDs : UV
+        normalIDs : 法線ID
+        vertexColors : 頂点の色
     """
     file = open(filePath, 'w')
     
@@ -441,7 +384,7 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     _, thresh = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
 
     # 画像全体から3次元点群を生成
-    points_3d = createPointCloudFromIMG_2(thresh, height, mask)
+    points_3d = createPointCloudFromIMG(thresh, height, mask)
 
     # メッシュを生成
     mesh = createMesh(points_3d)

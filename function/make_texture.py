@@ -3,18 +3,45 @@ from PIL import Image
 import cv2
 
 def load_obj(file_path):
+    """OBJを読み込む
+
+    Args:
+        file_path (str): OBJのパス
+
+    Returns:
+        List : vertex(頂点)
+        List : face(メッシュ)
+    """
+    # 変数宣言
     vertices = []
     faces = []
+    
+    # ファイルオープン
     with open(file_path, 'r') as file:
+        
+        # 1行読み込む
         for line in file:
+            
+            # 頂点なら頂点リストに追加
             if line.startswith('v '):
                 vertices.append(list(map(float, line.strip().split()[1:])))
+            
+            # メッシュならメッシュリストに追加
             elif line.startswith('f '):
                 face = [list(map(int, v.split('/'))) for v in line.strip().split()[1:]]
                 faces.append(face)
+                
     return np.array(vertices), faces
 
 def save_obj(file_path, vertices, faces, uvs):
+    """objを出力する
+
+    Args:
+        file_path (str): ファイルパス
+        vertices (List): 頂点
+        faces (List): メッシュ
+        uvs (List): UV
+    """
     
     file = open(file_path, 'w')
     
@@ -30,18 +57,37 @@ def save_obj(file_path, vertices, faces, uvs):
     file.write("######\n")
 
     with open(file_path, 'a') as file:
+        file.write("# -----Vertex-----\n")
         for vertex in vertices:
             file.write(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
+            
+        file.write("\n# -----UV-----\n")
         for uv in uvs:
             file.write(f"vt {uv[0]} {uv[1]}\n")
+            
+        file.write("\n# -----face-----\n")
         for face in faces:
             face_str = ' '.join([f"{v[0]}/{i+1}" for i, v in enumerate(face)])
             file.write(f"f {face_str}\n")
 
 def create_uvs_from_image(vertices, image_path):
+    """画像からUV展開を施し，UVリストを出力する
+
+    Args:
+        vertices (List): 頂点
+        image_path (str): 画像のパス
+
+    Returns:
+        List: UV座標のリスト
+    """
+    # 画像を読み込んでサイズを取得
     image = Image.open(image_path)
     width, height = image.size
+    
     uvs = []
+    
+    # vertexの座標を[0-1]に収まるよう正規化
+    # ->UV座標系に変換
     for vertex in vertices:
         u = vertex[0] / width
         v = 1 - (vertex[1] / height)
@@ -49,6 +95,14 @@ def create_uvs_from_image(vertices, image_path):
     return np.array(uvs)
 
 def makeUVs(obj_file_path,image_file_path,output_file_path,file):
+    """UV展開する
+
+    Args:
+        obj_file_path (str): OBJのパス
+        image_file_path (str): imgのパス
+        output_file_path (str): 出力のパス
+        file (str): 拡張子を除いたファイル名
+    """
     # OBJファイルの読み込み
     vertices, faces = load_obj(obj_file_path)
 

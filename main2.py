@@ -1,7 +1,7 @@
 # ライブラリのインポート
 import sys
 import os
-from flask import Flask, send_file, jsonify,render_template,redirect,url_for
+from flask import Flask, send_file, jsonify,render_template,redirect,url_for,request
 import shutil
 import random
 import zipfile
@@ -65,11 +65,7 @@ def serverStart(ip = '150.89.239.35',flag=True):
     print(Fore.LIGHTCYAN_EX + '     ~~~`~~~~~~~~~~~~~~/~~~~')
 
     print(Fore.LIGHTYELLOW_EX + '以下のURLにログインしてください')
-    print(Fore.LIGHTYELLOW_EX + "-> http://150.89.239.35:5000")
-    print(Fore.LIGHTYELLOW_EX + '')
-    print(Fore.LIGHTYELLOW_EX + '大工大の場合は以下のURLにログインしてください')
-    print(Fore.LIGHTYELLOW_EX + "-> http://172.21.1.43:5000")
-    
+    print(Fore.LIGHTYELLOW_EX + "-> http://127.0.0.1:5000")
     print(Fore.WHITE)
     print(Style.RESET_ALL+"",end="")
     
@@ -208,6 +204,11 @@ def zipFish(fishPath,pngPath):
 #! ペイントツールを起動させる(リフレッシュを兼ねてホームページを返す)
 @app.route('/paint')
 def showPaintTool():
+    """ペイントツールを起動
+
+    Returns:
+        indexにリダイレクト
+    """
     module.printTerminal("ペイントツールを起動します")
     paint.main()
     return redirect(url_for('index'))
@@ -215,6 +216,12 @@ def showPaintTool():
 #! 再起動
 @app.route('/reset')
 def resetApp():
+    """システムを再起動
+       ※プログラム内部の処理のみで，Flaskはそのまま
+
+    Returns:
+        indexにリダイレクト
+    """
     global g_templateNum
     global g_fishNum
     global g_upnum
@@ -233,8 +240,29 @@ def resetApp():
 #! ホームページを表示
 @app.route('/',methods=['GET'])
 def index():
+    """ホームページを表示
+
+    Returns:
+       html : Webサイト
+    """
     module.printTerminal("HPを表示します")
     return render_template('index.html')
+
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """システムをシャットダウン
+
+    Returns:
+        str : メッセージ
+    """
+    module.printTerminal("シャットダウンします")
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
+    return 'Server shutting down...'
+
 
 #* ======================================================================================== 
 #* main関数関係
@@ -294,7 +322,7 @@ def main():
     if not debug:
         EndOfProgram()
     
-    print("\n==============End Program=============\n")
+    module.printTerminal("End Program")
 
 
 if __name__ == "__main__":

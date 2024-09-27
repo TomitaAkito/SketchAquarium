@@ -322,7 +322,7 @@ class PaintApp:
         """キャンパス上の魚を生成アルゴリズムに反映させる
         """
         # ライブラリを読み込む
-        import fish_contour
+        import function.extraction_fish as extraction_fish
         
         # file名を取得する
         file = "paint.png"
@@ -333,7 +333,7 @@ class PaintApp:
             self.image.save(filePath)
 
         # 魚を抽出
-        only_img = fish_contour.findFishParts(filePath, file)
+        only_img = extraction_fish.findFishParts(filePath, file)
         # cv2.imshow("hello",only_img)
         # cv2.waitKey(0)
         
@@ -346,6 +346,11 @@ class PaintApp:
             exit_msgbox(self.root)
 
 def exit_msgbox(root):
+    """メッセージボックスを終了する
+
+    Args:
+        root : メッセージボックス本体
+    """
     global g_Flag
     
     root.quit()  # Yesの場合、root.quit()を呼び出してイベントループを終了
@@ -354,6 +359,11 @@ def exit_msgbox(root):
     g_Flag = True
 
 def No_msgbox(root):
+    """メッセージでNoが選択される
+
+    Args:
+        root : メッセージボックス本体
+    """
     global g_Flag
     
     root.quit()  # Yesの場合、root.quit()を呼び出してイベントループを終了
@@ -361,6 +371,12 @@ def No_msgbox(root):
     g_Flag = False
 
 def display_image(image_path, root=None):
+    """imgを表示する
+
+    Args:
+        image_path (str): 画像のパス
+        root :メッセージボックス
+    """
     global g_Flag
     
     
