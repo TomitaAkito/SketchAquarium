@@ -1,6 +1,6 @@
 __pycache__/
 function/__pycache__/
 venv/
-/upload/*
-/output/*
-/inputimg/*
+upload/
+output/
+inputimg/

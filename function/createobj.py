@@ -105,7 +105,7 @@ def createPointCloudFromIMG(image, height, maskimg):
                 top_he = base_he = height / 2
 
         # 条件に一致するとリストに加える
-        if x % 5 == 0 and y % 5 == 0:
+        if x % 8 == 0 and y % 8 == 0:
             base_points.append([x, y, base_he])
             top_points.append([x, y, top_he])
 
@@ -121,7 +121,7 @@ def createPointCloudFromIMG(image, height, maskimg):
     for contour in contour_points:
         for point in contour:
             x, y = point
-            if x % 2 == 0 and y % 2 == 0:
+            if x % 3 == 0 and y % 3 == 0:
                 side_points.append([x, y, height / 2])
 
     # 3次元点群を連結
@@ -485,12 +485,8 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
 
     # 法線ベクトルを手動で計算
     normals = computeNormals(np.asarray(mesh.vertices), np.asarray(mesh.triangles))
-    print(normals)
     
     meshpath = "./output/mesh/me_" + exFile + ".obj"
-    saveOBJFile(meshpath, vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors)
-    # o3d.io.write_triangle_mesh(meshpath, mesh)
-    meshpath = "./output/mesh/me1_" + exFile + ".obj"
     saveOBJFile(meshpath, vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors)
 
 if __name__ == "__main__":
