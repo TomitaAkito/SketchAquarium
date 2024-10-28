@@ -105,7 +105,7 @@ def createPointCloudFromIMG(image, height, maskimg):
                 top_he = base_he = height / 2
 
         # 条件に一致するとリストに加える
-        if x % 8 == 0 and y % 8 == 0:
+        if x % 5 == 0 and y % 5 == 0:
             base_points.append([x, y, base_he])
             top_points.append([x, y, top_he])
 

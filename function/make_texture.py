@@ -70,6 +70,7 @@ def save_obj(file_path, vertices, faces, uvs, normals=None):
             file.write("\n# -----Normals-----\n")
             for normal in normals:
                 file.write(f"vn {normal[0]} {normal[1]} {normal[2]}\n")
+                # file.write(f"vn -0.5 -0.5 -0.5\n")
             
         file.write("\n# -----UV-----\n")
         for uv in uvs:

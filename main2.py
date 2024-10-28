@@ -298,7 +298,7 @@ def EndOfProgram():
 
 def main():
     """すべての始まり"""
-    debug = True
+    debug = False
 
     if not debug:
         import logging
