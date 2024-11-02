@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 import os
+import sys
+# 現在のディレクトリをシステムパスに追加
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import module
 
 
 def removeShade(img):
@@ -75,7 +79,7 @@ def transform_by4(img, points):
     return cv2.warpPerspective(img, trans, (int(width), int(height)))
 
 
-def clippingIMG(img, outputPath="./inputimg/cfish.png"):
+def clippingIMG(img):
     """画像から四角形領域を抽出して保存する関数
 
     Args:
@@ -93,9 +97,6 @@ def clippingIMG(img, outputPath="./inputimg/cfish.png"):
 
     # Cannyアルゴリズムでエッジ検出
     canny = cv2.Canny(canny, 50, 100)
-
-    # エッジ検出結果を表示
-    cv2.imshow("canny", canny)
 
     # エッジ検出画像から輪郭を抽出
     contours, _ = cv2.findContours(canny, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -132,22 +133,13 @@ def clippingIMG(img, outputPath="./inputimg/cfish.png"):
         for pos in approx:
             cv2.circle(lines, tuple(pos[0]), 4, (255 * level, 0, 0))
 
-    # 輪郭が描かれた画像を表示
-    cv2.imshow("edge", lines)
-
     # 四角形の輪郭が見つかった場合
     if warp is not None:
+        print(warp)
         # 四角形の輪郭を使って画像を変換
         warped = transform_by4(img, warp[:, 0, :])
-
-        # 変換後の画像を表示
-        cv2.imshow("warp", warped)
-
-        # 変換後の画像を指定したパスに保存
-        cv2.imwrite(outputPath, warped)
-
-        # キー入力待ち（ウィンドウを閉じるため）
-        cv2.waitKey(0)
+    
+    return warped
 
 
 def camera(cap, res_dir="test/"):
@@ -160,6 +152,7 @@ def camera(cap, res_dir="test/"):
     Returns:
         frame: 撮った写真
     """
+    frame = None
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -168,35 +161,53 @@ def camera(cap, res_dir="test/"):
 
         key = cv2.waitKey(1)
         if key == ord("q"):
-            cv2.imwrite(res_dir + "fish.png", frame)
+            cv2.imwrite(res_dir, frame)
+            cv2.destroyAllWindows()
             break
     return frame
 
 
 def camera_start():
     """カメラを起動し、画像をキャプチャしてクリッピングを行う関数"""
-    res_dir = "./inputimg/"
+    res_dir = "./output/camera/"
     os.makedirs(res_dir, exist_ok=True)
+
+    img = None  # 初期化
 
     # カメラインデックスを試行する
     for index in range(5):
         cap = cv2.VideoCapture(index)
+        
+        # 解像度の設定
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
+        
+        # カメラが使用できれば撮影する
         if cap.isOpened():
             print(f"Camera {index} is opened")
-            img = camera(cap, res_dir)
+            img = camera(cap, res_dir + 'fish.png')
             cap.release()  # カメラを解放
             break
         else:
             print(f"Camera {index} failed to open")
-    else:
-        print("No camera found")
 
-    # 影を除去
-    rsimg = removeShade(img)
-    cv2.imwrite("./inputimg/rshade.png", rsimg)
+    # カメラで画像が撮影できなかった場合、エラーメッセージを表示して終了
+    if img is None:
+        print("画像のキャプチャに失敗しました")
+        return
 
     # クリッピング
-    clippingIMG(rsimg)
+    clip_img = clippingIMG(img)
+    cv2.imwrite(res_dir+'clip.png', clip_img)
+    
+    # 影を除去
+    rsimg = removeShade(clip_img)
+    cv2.imwrite(res_dir+'rshade.png', rsimg)
+
+    # 結果をinputへ書き込む
+    filename = module.namingFile("fish_data",".png","./inputimg")
+    filepath = "./inputimg/"+filename
+    cv2.imwrite(filepath,clip_img)
 
 if __name__ == "__main__":
     print('main.pyを実行してください')

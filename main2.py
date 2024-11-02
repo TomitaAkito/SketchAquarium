@@ -124,15 +124,6 @@ def regitFish():
     file,g_templateFlag = module.regitFishPath(g_fishNum,g_templateNum)
     print(file)
     
-    # カメラ起動->画像入手
-    # print("------------Camera in Use------------\n")
-    # cameTimer = settimer.timer("-->camera-Timer")
-
-    # camera.camera_start()
-
-    # cameTimer.stop()
-    # print("----------Camera Not in Use----------\n")
-    
     #? ------------------------------------------------------
     #? 画像から魚抽出->輪郭抽出
     #? ------------------------------------------------------
@@ -212,6 +203,20 @@ def showPaintTool():
     module.printTerminal("ペイントツールを起動します")
     paint.main()
     return redirect(url_for('index'))
+
+#! カメラ起動
+@app.route('/camera')
+def useCamera():
+    """カメラにて手描き写真を使用
+
+    Returns:
+        indexにリダイレクト
+    """
+    # カメラ起動->画像入手
+    module.printTerminal("カメラにて撮影を行います")
+    camera.camera_start()
+    return redirect(url_for('index'))
+
 
 #! 再起動
 @app.route('/reset')

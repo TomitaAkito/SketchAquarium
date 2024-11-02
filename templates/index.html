@@ -9,14 +9,14 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com"> <!-- フォント設定 -->
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
-	<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo.jpg') }}">
+	<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo.png') }}">
 	<title>『MRを用いたお絵描き水族館』</title>
 </head>
 
 <body>
 	<!-- ヘッダー(共通) -->
 	<header>
-		<img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="サイトロゴ" />
+		<img src="{{ url_for('static', filename='images/logo.png') }}" alt="サイトロゴ" />
 		<nav>
 			<b class="bblue">『MRを用いたお絵描き水族館』</b>
 		</nav>
@@ -36,7 +36,7 @@
 				</p>
 			</div>
 			<div class="calam2">
-				<img src="{{ url_for('static', filename='images/logo.jpg') }}" class="calamimg" alt="ロゴ" />
+				<img src="{{ url_for('static', filename='images/logo.png') }}" class="calamimg" alt="ロゴ" />
 			</div>
 		</div>
 
@@ -46,10 +46,10 @@
 		<a href="http://127.0.0.1:5000/paint" class="btn_18">ペイントソフト起動</a>
 
 		<br>
+		<h1 class="heading-31" id="result">生成結果</h1>
 		<p>
 			絵を描いたあとはもう一度本ページを読み込んでください．正しく反映されている場合は下に画像が表示されます．
 		</p>
-		<hr class="dotted">
 		<!-- 画像表示場所 -->
 		<div class="calammain">
 			<div class="calam1-1">
@@ -62,6 +62,11 @@
 				<img src="{{ url_for('static', filename='images/new.png') }}" alt="エラーコード:404" class="calamimg" />
 			</div>
 		</div>
+
+		<!-----------------------------カメラ----------------------------->
+		<h1 class="heading-31" id="camera">カメラ</h1>
+		<p>用紙に記入した場合はカメラからデータを取り込んでください！</p>
+		<a href="http://127.0.0.1:5000/camera" class="btn_18">カメラ起動</a>
 
 		<!-----------------------------魚の生成結果を返す----------------------------->
 		<h1 class="heading-31" id="paint">生成結果</h1>

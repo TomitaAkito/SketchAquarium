@@ -48,6 +48,7 @@ def initmain():
     makeFile("./output/split")
     makeFile("./output/ss")
     makeFile("./output/paint")
+    makeFile("./output/camera")
     makeFile("./upload")
     
 def regitFishPath(nowNum,templateNum):
