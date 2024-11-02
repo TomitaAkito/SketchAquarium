@@ -2,7 +2,7 @@
 
 ## About
 本プログラムは任意のイラスト(魚型)から3DOBJを生成するためのプログラムになります．
-![Alt text](static/images/logo.jpg)
+![Alt text](static/images/logo.png)
 ---
 
 ## HowToUse

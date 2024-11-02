@@ -4,3 +4,5 @@ venv/
 upload/
 output/
 inputimg/
+build/
+dist/
