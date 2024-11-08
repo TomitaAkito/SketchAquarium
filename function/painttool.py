@@ -58,6 +58,7 @@ class PaintApp:
 
         edit_menu = tk.Menu(menu_bar, tearoff=0)
         menu_bar.add_cascade(label="編集", menu=edit_menu)
+        edit_menu.add_command(label="全削除",command=self.clear_all) # すべて削除を追加
         edit_menu.add_command(label="元に戻す", command=self.undo)  # 元に戻すメニューの追加
         
         regit_fish = tk.Menu(menu_bar, tearoff=0)
@@ -126,6 +127,8 @@ class PaintApp:
         self.draw = ImageDraw.Draw(self.image)
         self.last_tk_image = ImageTk.PhotoImage(self.image)
         self.canvas.create_image(0, 0, image=self.last_tk_image, anchor=tk.NW)
+
+        showExsample(root)
         
     def choose_color(self):
         """メニュー外の色を選択する
@@ -317,7 +320,18 @@ class PaintApp:
             self.draw = ImageDraw.Draw(self.image)
             self.last_tk_image = ImageTk.PhotoImage(self.image)
             self.canvas.create_image(0, 0, image=self.last_tk_image, anchor=tk.NW)
-            
+    
+    def clear_all(self):
+        """
+        描画した線をすべて削除します。
+        """
+        self.history.append(self.image.copy())  # 現在の画像の状態を履歴に保存
+        self.image = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), "white")
+        self.draw = ImageDraw.Draw(self.image)
+        self.canvas.delete("all")
+        self.last_tk_image = ImageTk.PhotoImage(self.image)
+        self.canvas.create_image(0, 0, image=self.last_tk_image, anchor=tk.NW)
+    
     def regitFish(self):
         """キャンパス上の魚を生成アルゴリズムに反映させる
         """
@@ -339,11 +353,15 @@ class PaintApp:
         
         # これで問題ないか確認する
         # 結果はg_Flagに格納
-        display_image("./output/onlyfish/only"+file)
+        display_image("./output/onlyfish/only"+file,"魚を抽出")
         
         # g_Flagをみて閉じるか検討する
         if g_Flag:
             exit_msgbox(self.root)
+
+def showExsample():
+    """例を表示"""
+    display_image('./inputimg/template(1).png',"例",False)
 
 def exit_msgbox(root):
     """メッセージボックスを終了する
@@ -370,7 +388,7 @@ def No_msgbox(root):
     root.destroy()  # Yesの場合、すべてのウィンドウを閉じる
     g_Flag = False
 
-def display_image(image_path, root=None):
+def display_image(image_path,title="画像選択" ,flag=True,root=None):
     """imgを表示する
 
     Args:
@@ -385,7 +403,7 @@ def display_image(image_path, root=None):
     else:
         root = tk.Toplevel(root)  # 既存のTkインスタンスを親にする
 
-    root.title("画像選択")
+    root.title(title)
 
     # 画像を開く
     img = Image.open(image_path)
@@ -396,13 +414,14 @@ def display_image(image_path, root=None):
     img_label = tk.Label(root, image=img_tk)
     img_label.image = img_tk  # 参照を保持するために属性に保存
     img_label.pack()
+    
+    if flag:
+        # Yes/Noボタン
+        yes_button = tk.Button(root, text="Yes", command=lambda: exit_msgbox(root))
+        yes_button.pack(side=tk.LEFT, padx=10, pady=10)
 
-    # Yes/Noボタン
-    yes_button = tk.Button(root, text="Yes", command=lambda: exit_msgbox(root))
-    yes_button.pack(side=tk.LEFT, padx=10, pady=10)
-
-    no_button = tk.Button(root, text="No", command=lambda: No_msgbox(root))  # Noボタンには何も追加処理を行わない
-    no_button.pack(side=tk.RIGHT, padx=10, pady=10)
+        no_button = tk.Button(root, text="No", command=lambda: No_msgbox(root))  # Noボタンには何も追加処理を行わない
+        no_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
     root.mainloop()
     

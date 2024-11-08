@@ -3,6 +3,8 @@ import sys
 import os
 import colorama
 from colorama import Fore, Back, Style
+import cv2
+import numpy as np
 
 #?----------------------------------------------------
 #? 自作モジュール
@@ -102,6 +104,140 @@ def getImgFish(fishNum,templateNum):
     else:
         return "./output/onlyfish/up2down_template("+str(templateNum)+").png"
 
+def calculate_centroids(image_path,radius = 10,showFlag = False):
+    """
+    二値化された画像において、各白領域の重心を計算する関数。
+    
+    引数:
+    image_path (str): 二値化画像のファイルパス
+    
+    戻り値:
+    list: 重心の座標のリスト [(x1, y1), (x2, y2), ...] 形式
+    """
+    # 画像を読み込む
+    binary_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    if binary_image is None:
+        raise ValueError(f"画像の読み込みに失敗しました: {image_path}")
+    
+    # 画像が二値化されていない場合、二値化処理を行う
+    _, binary_image = cv2.threshold(binary_image, 127, 255, cv2.THRESH_BINARY)
+
+    # 連結成分をラベリング
+    num_labels, labels = cv2.connectedComponents(binary_image)
+
+    centroids = []
+    # 画像をカラー画像に変換（赤色を表示するため）
+    color_image = cv2.cvtColor(binary_image, cv2.COLOR_GRAY2BGR)
+    
+    for label in range(1, num_labels):  # 0は背景なので除外
+        # ラベルごとの座標を抽出
+        coords = np.column_stack(np.where(labels == label))
+        
+        # 重心を計算
+        centroid = np.mean(coords, axis=0)
+        centroids.append(tuple(centroid))
+        
+        # 重心の座標を取得
+        x, y = int(centroid[1]), int(centroid[0])  # (x, y) -> (列, 行)
+
+        # 重心を中心に円を描く
+        cv2.circle(color_image, (x, y), radius, (0, 0, 255), 2)  # 赤色の円を描く
+
+    if showFlag:
+        # 画像を表示
+        cv2.imshow("Marked Image", color_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    return centroids
+
+
+def calculate_longest_line_through_centroid(image_path):
+    """
+    二値化された画像の白領域において、重心を通り最も長い直線を持つ白領域の輪郭の頂点ペアを求め、そのペアで直線を描画する関数。
+    
+    すべての直線が同じ距離の場合、その旨を出力する。
+
+    引数:
+    image_path (str): 二値化画像のファイルパス
+
+    戻り値:
+    tuple: 最も長い直線を持つ頂点ペア ((x1, y1), (x2, y2)) またはすべての直線が同じ距離の場合、その旨を表示
+    """
+    # 画像を読み込む
+    binary_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    if binary_image is None:
+        raise ValueError(f"画像の読み込みに失敗しました: {image_path}")
+
+    # 二値化がされていない場合、二値化処理を行う
+    _, binary_image = cv2.threshold(binary_image, 127, 255, cv2.THRESH_BINARY)
+
+    # 画像をカラー画像に変換
+    color_image = cv2.cvtColor(binary_image, cv2.COLOR_GRAY2BGR)
+
+    # 白領域の輪郭を検出
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 白領域のピクセル座標を取得
+    white_pixels = np.column_stack(np.where(binary_image == 255))
+
+    # 重心を計算
+    centroid = np.mean(white_pixels, axis=0)
+    centroid = tuple(centroid)
+
+    # 最大の距離を求める
+    max_distance = 0
+    best_pair = None
+    same_distance = True  # 同じ距離かどうかをチェック
+
+    # 輪郭内の各点を通る直線を計算し、重心を通る直線の中で最も長い距離を求める
+    for contour in contours:
+        for i in range(len(contour)):
+            p1 = contour[i][0]  # 輪郭の1つ目の点
+            for j in range(i + 1, len(contour)):
+                p2 = contour[j][0]  # 輪郭の2つ目の点
+
+                # 重心を通る直線の方程式を求める
+                if p2[0] != p1[0]:  # x座標が異なる場合、傾きが計算可能
+                    m = (p2[1] - p1[1]) / (p2[0] - p1[0])
+                    b = p1[1] - m * p1[0]  # y切片を計算
+
+                    # 重心を通る直線がこの直線の式を満たすかを確認
+                    # 直線の方程式に重心のx座標を代入して、y座標が重心のy座標と一致するかを確認
+                    if abs(centroid[1] - (m * centroid[0] + b)) < 1e-5:
+                        # 重心を通る直線として採用
+                        # この直線の長さを計算
+                        distance = np.linalg.norm(np.array(p1) - np.array(p2))
+                        if distance > max_distance:
+                            max_distance = distance
+                            best_pair = (tuple(p1), tuple(p2))
+                            same_distance = True  # 最大距離が更新されたので、同じ距離ではない
+
+                        elif distance == max_distance:
+                            # 距離が最大と同じならば、同じ距離とフラグを維持
+                            continue
+
+    # 結果を表示
+    if best_pair:
+        p1, p2 = best_pair
+        cv2.line(color_image, (int(p1[0]), int(p1[1])), (int(p2[0]), int(p2[1])), (0, 255, 0), 2)  # 緑色の線を描画
+        print(f"最も長い直線を持つ頂点ペア: {best_pair} 距離: {max_distance}")
+    else:
+        print("直線が見つかりませんでした")
+
+    if same_distance:
+        print("すべての直線の長さが同じです。")
+
+    # 結果を表示
+    cv2.imshow("Line Drawn on Image", color_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    return best_pair
+
+
 def printTerminal(string,color = 1):
     """何の処理をしているか表示させる
 
@@ -124,4 +260,5 @@ def printTerminal(string,color = 1):
     print(Style.RESET_ALL+"",end="")
     
 if __name__ == "__main__":
-    print(namingFile("fish_data",".png","./inputimg"))
+    # print(namingFile("fish_data",".png","./inputimg"))
+    calculate_longest_line_through_centroid("./output/ss/2_regrowtemplate(1)_common_1.png")

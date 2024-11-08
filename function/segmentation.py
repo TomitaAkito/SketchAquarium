@@ -2,7 +2,8 @@
 import cv2
 from skimage import measure
 import numpy as np
-
+import networkx as nx
+import matplotlib.pyplot as plt
 
 #? ---------------------------------------------------------------------------------------------------
 #? 成田智史，井尻敬，“最小切断面を利用した2値画像の意味的領域分割”，画像電子学会誌，第47巻,
@@ -143,27 +144,73 @@ def minCut(baseimg, maskNum, filename):
         maskNum (int): 分割した枚数
         filename (str): ファイルの名前
     """
-    # 基になるマスク画像をグレースケールに変換し、必要ならサイズも変更
-    baseimg = cv2.cvtColor(baseimg, cv2.COLOR_BGR2GRAY) if len(baseimg.shape) == 3 else baseimg
-
-    for i in range(maskNum):
-        # 膨張した画像を読み込む
-        file =  './output/ss/'+ '2_regrow' + filename +'_common_'+ str(i) + '.png'
-        dilate_mask = cv2.imread(file, cv2.IMREAD_GRAYSCALE)  # グレースケールで読み込む
+    # 入力画像のサイズ
+    rows, cols = baseimg.shape
+    segmented_images = []
+    
+    # グラフ構築用関数
+    def build_graph(image):
+        G = nx.DiGraph()
+        source = "source"
+        sink = "sink"
+        G.add_node(source)
+        G.add_node(sink)
         
-        # 画像のサイズを合わせる（必要なら）
-        if baseimg.shape != dilate_mask.shape:
-            dilate_mask = cv2.resize(dilate_mask, (baseimg.shape[1], baseimg.shape[0]))
+        for i in range(rows):
+            for j in range(cols):
+                node = (i, j)
+                # 前景ピクセルをソースに、背景ピクセルをシンクに接続
+                if image[i, j] == 1:
+                    G.add_edge(source, node, capacity=float("inf"))
+                else:
+                    G.add_edge(node, sink, capacity=float("inf"))
 
-        # AND演算を行う
-        common_mask = cv2.bitwise_and(baseimg, dilate_mask)
-        file_mask = './output/ss/' + '3_mincut_co_' + filename + '_' + str(i) + '.png'
-        cv2.imwrite(file_mask, common_mask)
+                # 隣接ピクセルへのエッジを追加
+                for di, dj in [(0, 1), (1, 0)]:  # 右と下のピクセルを隣接として設定
+                    ni, nj = i + di, j + dj
+                    if 0 <= ni < rows and 0 <= nj < cols:
+                        G.add_edge(node, (ni, nj), capacity=1)
+                        G.add_edge((ni, nj), node, capacity=1)
+        
+        return G
 
-        # NOT演算を行う（膨張した画像と共通領域の差分）
-        notcommon_mask = cv2.bitwise_and(dilate_mask, cv2.bitwise_not(common_mask))
-        file_mask = './output/ss/' + '3_mincut_noco_' + filename + '_' + str(i) + '.png'
-        cv2.imwrite(file_mask, notcommon_mask)
+    # 画像を指定した回数で分割
+    current_img = baseimg.copy()
+    for part in range(maskNum):
+        G = build_graph(current_img)
+        source = "source"
+        sink = "sink"
+        
+        # 最大フロー最小切断を実行
+        cut_value, partition = nx.minimum_cut(G, source, sink)
+        reachable, non_reachable = partition
+
+        # 分割結果を格納するための画像を作成
+        segmented_part = np.zeros_like(baseimg)
+        for node in reachable:
+            if isinstance(node, tuple) and len(node) == 2:  # ピクセル座標のみ処理
+                x, y = node
+                segmented_part[x, y] = 255
+        
+        # 分割結果をファイルとして保存
+        part_filename = f"{filename}_part_{part+1}.png"
+        cv2.imwrite(part_filename, segmented_part)
+        segmented_images.append(segmented_part)
+        
+        # 次の分割のために現在の画像から切断した領域を除外
+        for node in reachable:
+            if isinstance(node, tuple) and len(node) == 2:
+                x, y = node
+                current_img[x, y] = 0
+
+    # 分割結果の表示
+    plt.figure(figsize=(10, maskNum))
+    for i, img in enumerate(segmented_images):
+        plt.subplot(1, maskNum, i + 1)
+        plt.imshow(img, cmap="gray")
+        plt.title(f"Part {i+1}")
+        plt.axis("off")
+    plt.show()
 
 
 def SSFromIMG(maskimg,filename):
