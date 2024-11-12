@@ -259,6 +259,9 @@ def printTerminal(string,color = 1):
     print(Fore.WHITE)
     print(Style.RESET_ALL+"",end="")
     
+
+
+    
 if __name__ == "__main__":
     # print(namingFile("fish_data",".png","./inputimg"))
     calculate_longest_line_through_centroid("./output/ss/2_regrowtemplate(1)_common_1.png")

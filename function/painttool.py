@@ -128,7 +128,7 @@ class PaintApp:
         self.last_tk_image = ImageTk.PhotoImage(self.image)
         self.canvas.create_image(0, 0, image=self.last_tk_image, anchor=tk.NW)
 
-        showExsample(root)
+        showExsample()
         
     def choose_color(self):
         """メニュー外の色を選択する
