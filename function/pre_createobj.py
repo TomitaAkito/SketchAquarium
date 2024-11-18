@@ -125,11 +125,11 @@ def createPointCloudFromIMG(image, height, maskimg):
                 side_points.append([x, y, height / 2])
 
     # 3次元点群を連結
-    # points_3d = np.vstack((base_points, top_points, side_points))
+    points_3d = np.vstack((base_points, top_points, side_points))
 
-    # return points_3d
+    return points_3d
     
-    return base_points,top_points,side_points
+    # return base_points,top_points,side_points
 
 
 def printAry(mesh):
@@ -149,6 +149,34 @@ def printAry(mesh):
     # メッシュ情報の表示
     print("Vertices:")
     print(vertex_colors)
+    
+    
+def sort_vertices_by_bpa(points, radii=[0.05, 0.1, 0.2]):
+    """
+    Ball-Pivoting Algorithmを使用して3D点群から頂点座標を並び替える関数
+
+    Parameters:
+    points (numpy.ndarray): [x, y, z]の形のNumPy配列
+
+    Returns:
+    numpy.ndarray: 並び替えられた頂点座標のNumPy配列
+    """
+     # numpy配列をOpen3DのPointCloudに変換
+    point_cloud = o3d.geometry.PointCloud()
+    point_cloud.points = o3d.utility.Vector3dVector(points)
+
+    # 法線を推定（BPAに必要）
+    point_cloud.estimate_normals()
+
+    # Ball-Pivoting Algorithmを適用
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+        point_cloud, o3d.utility.DoubleVector(radii)
+    )
+
+    # メッシュの頂点座標をnumpy配列に変換して返す
+    vertices = np.asarray(mesh.vertices)
+    return vertices
+
 
 def createMesh(points_3d):
     """点群からメッシュを手動で作成
@@ -159,7 +187,7 @@ def createMesh(points_3d):
     Returns:
         メッシュ
     """
-    points_3d = np.array(points_3d)  # NumPy配列に変換
+    points_3d = sort_vertices_by_bpa(points_3d)  # NumPy配列に変換
     
     # NumPy配列からOpen3Dの点群オブジェクトを作成
     point_cloud = o3d.geometry.PointCloud()
@@ -194,6 +222,9 @@ def createMesh(points_3d):
     y = points_3d[:, 1]
     z = points_3d[:, 2]
     
+    for i in range(len(z)):
+        print(x[i],y[i],z[i])
+    
     vertex_list = points_3d
 
     maxfloor = max(z)  # 最大のz座標を取得
@@ -222,11 +253,6 @@ def createMesh(points_3d):
     mesh = o3d.geometry.TriangleMesh()
     mesh.vertices = o3d.utility.Vector3dVector(points_3d)
     mesh.triangles = o3d.utility.Vector3iVector(faces.astype(int))
-    
-    mesh.compute_vertex_normals()
-
-    # Visualization in window
-    o3d.visualization.draw_geometries([mesh])
 
     return mesh
 
@@ -494,7 +520,8 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     _, thresh = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
 
     # 画像全体から3次元点群を生成
-    base_points,top_points,side_points = createPointCloudFromIMG(thresh, height, mask)
+    # base_points,top_points,side_points = createPointCloudFromIMG(thresh, height, mask)
+    base_points = createPointCloudFromIMG(thresh, height, mask)
 
     # メッシュを生成
     mesh = createMesh(base_points)

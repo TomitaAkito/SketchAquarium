@@ -24,9 +24,9 @@ html {
     }
 
     header img {
-        margin-top: 10px;
-        margin-bottom: -20px;
-        height: 70px;
+        margin-top: 5px;
+        margin-bottom: -10px;
+        height: 80px;
     }
 
     nav {
@@ -84,7 +84,7 @@ html {
 
     header img {
         margin-top: 10px;
-        margin-bottom: -10px;
+        margin-bottom: 0px;
         height: 100px;
     }
 
