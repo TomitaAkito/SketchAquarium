@@ -386,6 +386,58 @@ def make_normals_outward(mesh):
     
     return mesh
 
+def remove_black_region_by_centroid_loop(mesh, mask, height):
+    """
+    メッシュの各三角形を順次処理し、重心がマスクの黒領域にある場合に削除します。
+
+    Args:
+        mesh (o3d.geometry.TriangleMesh): Open3Dのメッシュ
+        mask (np.ndarray): マスク画像 (2D numpy array)
+        height (float): メッシュの高さスケール（必要なら使用）
+
+    Returns:
+        o3d.geometry.TriangleMesh: 修正されたメッシュ
+    """
+
+    # メッシュの頂点と三角形を取得
+    vertices = np.asarray(mesh.vertices)
+    triangles = np.asarray(mesh.triangles)
+
+    # マスクのサイズ取得
+    mask_h, mask_w = mask.shape
+
+    # 有効な三角形を格納するリスト
+    valid_triangles = []
+
+    # 各三角形を処理
+    for triangle in triangles:
+        # 三角形の頂点インデックス
+        v1, v2, v3 = triangle
+
+        # 三角形の頂点座標
+        p1, p2, p3 = vertices[v1], vertices[v2], vertices[v3]
+
+        # 重心を計算
+        centroid = (p1 + p2 + p3) / 3.0
+
+        # 重心のXY座標をマスクのインデックスに変換
+        x_idx = int(((centroid[0] - vertices[:, 0].min()) / (vertices[:, 0].max() - vertices[:, 0].min())) * (mask_w - 1))
+        y_idx = int(((centroid[1] - vertices[:, 1].min()) / (vertices[:, 1].max() - vertices[:, 1].min())) * (mask_h - 1))
+
+        # インデックスがマスクの範囲内か確認
+        if 0 <= x_idx < mask_w and 0 <= y_idx < mask_h:
+            # 重心が黒領域にない場合、有効な三角形とする
+            if mask[y_idx, x_idx] != 0:
+                valid_triangles.append(triangle)
+
+    # 新しいメッシュを作成
+    new_mesh = o3d.geometry.TriangleMesh()
+    new_mesh.vertices = mesh.vertices  # 頂点は変更なし
+    new_mesh.triangles = o3d.utility.Vector3iVector(valid_triangles)
+
+    return new_mesh
+
+
 def showPoint(points_3d):
     
     # NumPy配列からOpen3Dの点群オブジェクトを作成
@@ -449,8 +501,8 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     base_points,top_points,side_points = createPointCloudFromIMG(thresh, height, mask)
     
     # 3次元点群を連結
-    # base_points = np.vstack((base_points, top_points, side_points))
-    # base_points = np.vstack((base_points, side_points))
+    all_points = np.vstack((base_points, top_points, side_points))
+    base_points = np.vstack((base_points, side_points))
     top_points = np.vstack((top_points, side_points))
 
     # 点群の出力
@@ -463,19 +515,22 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     top_points = np.array(top_points)
     
     # 点群を表示
-    showPoint(base_points)
-    showPoint(top_points)
+    # showPoint(base_points)
+    # showPoint(top_points)
+    # showPoint(all_points)
     
     # メッシュを生成
     base_mesh = createMesh(base_points)
     top_mesh = createMesh(top_points)
     mesh = base_mesh + top_mesh
     
+    # mesh = remove_black_region_by_centroid_loop(mesh,cv2.flip(mask, 0) , height)
+    
     # すべての法線ベクトルを外向きに修正
     mesh = make_normals_outward(mesh)
     
     # Meshを表示
-    o3d.visualization.draw_geometries([mesh])
+    # o3d.visualization.draw_geometries([mesh])
 
     # OBJとして出力
     vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors = disassemblyMesh(mesh)
