@@ -1,116 +1,91 @@
-import pywavefront
 import numpy as np
+import trimesh
+import os
+
+def create_bone_structure(bone_list, obj_path, file_name):
+    """
+    ボーン構築とメッシュのスキンウェイトを施し、メッシュと情報を保存する。
+    
+    Args:
+        bone_list (list): ボーンリスト。形式: [[親[x, y, z], 子1[x1, y1, z1], 子2[x2, y2, z2], ...], ...]
+        obj_path (str): メッシュのパス。
+        file_name (str): 保存するファイル名（拡張子なし）。
+    """
+    # メッシュをロード
+    mesh = trimesh.load_mesh(obj_path)
+
+    # ボーンデータを構築
+    bone_data = []
+    for bone in bone_list:
+        parent_position = np.array(bone[0])
+        for child_position in bone[1:]:
+            child_position = np.array(child_position)
+            bone_data.append((parent_position, child_position))
+
+    # ボーン情報をtxtに保存
+    txt_path = f"{file_name}.txt"
+    with open(txt_path, "w") as f:
+        for i, (parent, child) in enumerate(bone_data):
+            parent_name = f"Bone_{i}_Parent"
+            child_name = f"Bone_{i}_Child"
+            world_position = child
+            f.write(f"Bone: {child_name}, World Position: {world_position.tolist()}, Parent: {parent_name}\n")
+
+    # メッシュにスキンウェイトを適用 (擬似的に頂点カラーとしてボーンの影響範囲を適用)
+    vertices = mesh.vertices
+    weights = np.zeros((len(vertices), len(bone_data)))
+    
+    for i, (parent, child) in enumerate(bone_data):
+        direction = child - parent
+        for j, vertex in enumerate(vertices):
+            vec_to_bone = vertex - parent
+            projection = np.dot(vec_to_bone, direction) / np.linalg.norm(direction)
+            weights[j, i] = max(0, 1 - abs(projection))  # ボーンへの距離でスキンウェイトを設定
+    
+    # 頂点カラーとしてウェイトを設定 (擬似的に視覚化)
+    mesh.visual.vertex_colors = (weights.max(axis=1) * 255).astype(np.uint8)
+
+    # メッシュを保存
+    output_obj_path = f"{file_name}.obj"
+    mesh.export(output_obj_path)
+
+    print(f"ボーン情報を保存しました: {txt_path}")
+    print(f"スキンウェイト適用メッシュを保存しました: {output_obj_path}")
+    visualize_with_open3d(mesh,weights)
+    
 import open3d as o3d
+import matplotlib.pyplot as plt
 
-# OBJファイルを読み込み
-def load_obj(file_path):
-    scene = pywavefront.Wavefront(file_path, collect_faces=True)
-    vertices = np.array(scene.vertices)
-    faces = np.array([face for face in scene.mesh_list[0].faces])
-    
-    # Open3D用のメッシュに変換
-    mesh = o3d.geometry.TriangleMesh()
-    mesh.vertices = o3d.utility.Vector3dVector(vertices)
-    mesh.triangles = o3d.utility.Vector3iVector(faces)
-    
-    return mesh
+# Open3Dを使ってメッシュを可視化
+def visualize_with_open3d(mesh, weights):
+    # 頂点カラーをスケール補正
+    scale_factor = 5  # 明るさ補正係数（必要に応じて調整）
+    vertex_colors = weights.max(axis=1)  # 各頂点の最大ウェイトを使用
+    vertex_colors_scaled = (vertex_colors * scale_factor).clip(0, 1)  # 明るさ補強後0-1に正規化
 
-# ボーンデータを手動で定義
-class Bone:
-    def __init__(self, name, position, parent=None):
-        self.name = name
-        self.position = np.array(position)
-        self.parent = parent
-        self.offset = np.array([0, 0, 0])  # ボーンの移動によるオフセット
+    # カラーマップを適用
+    cmap = plt.cm.viridis  # 他のカラーマップも利用可能
+    vertex_colors_rgb = cmap(vertex_colors_scaled)[:, :3]  # RGB成分を取得
 
-    def get_world_position(self):
-        if self.parent:
-            return self.parent.get_world_position() + self.position
-        return self.position
+    # Open3D用のメッシュを構築
+    o3d_mesh = o3d.geometry.TriangleMesh()
+    o3d_mesh.vertices = o3d.utility.Vector3dVector(mesh.vertices)
+    o3d_mesh.triangles = o3d.utility.Vector3iVector(mesh.faces)
+    o3d_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors_rgb)
 
-    def move(self, offset):
-        # ボーンを指定されたオフセットで移動
-        self.offset = np.array(offset)
+    # メッシュを可視化
+    o3d.visualization.draw_geometries([o3d_mesh], window_name="Weight Visualization",
+                                      width=800, height=600)
 
-# ボーンリストを作成
-def create_bones():
-    root_bone = Bone("root", [300, 300, 50])
-    bone1 = Bone("bone1", [150, 0, 0], root_bone)
-    bone2 = Bone("bone2", [50, 0, 0], bone1)
-    return [root_bone, bone1, bone2]
+def main(obj_path,file_name):
+    # サンプルデータ
+    bone_list = [
+        [[0, 0, 0], [1, 1, 1], [2, 2, 0]],
+        [[1, 1, 1], [1, 2, 2], [0, 3, 1]]
+    ]
 
-# ボーン情報を表示
-def display_bones(bones):
-    for bone in bones:
-        world_position = bone.get_world_position()
-        parent_name = bone.parent.name if bone.parent else "None"
-        print(f"Bone: {bone.name}, World Position: {world_position}, Parent: {parent_name}")
+    # 実行
+    create_bone_structure(bone_list, obj_path, file_name)
 
-# ボーン情報をファイルに保存
-def save_bone_info(bones, file_path):
-    with open(file_path, 'w') as f:
-        for bone in bones:
-            world_position = bone.get_world_position()
-            parent_name = bone.parent.name if bone.parent else "None"
-            f.write(f"Bone: {bone.name}, World Position: {world_position.tolist()}, Parent: {parent_name}\n")
-
-# 各頂点に対するボーンの影響（スキンウェイト）を設定
-class VertexWeight:
-    def __init__(self, bone, weight):
-        self.bone = bone
-        self.weight = weight
-
-# 頂点にボーンウェイトを割り当てる
-def assign_vertex_weights(mesh, bones):
-    vertex_weights = []
-    for vertex in mesh.vertices:
-        # 簡単な例: すべての頂点がbone1の影響を100%受ける
-        weight = VertexWeight(bones[1], 1.0)
-        vertex_weights.append(weight)
-    return vertex_weights
-
-# ボーンの動きに基づいてメッシュを変形
-def deform_mesh(mesh, bones, vertex_weights):
-    new_vertices = []
-    for i, vertex in enumerate(mesh.vertices):
-        weight = vertex_weights[i]
-        bone = weight.bone
-        
-        # ボーンの影響に基づいて頂点を変形
-        new_vertex = vertex + weight.weight * (bone.get_world_position() + bone.offset - bone.position)
-        new_vertices.append(new_vertex)
-    
-    # メッシュの頂点位置を更新
-    mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
-
-# メイン処理
-if __name__ == "__main__":
-
-    # OBJファイルのパスを指定
-    obj_path = 'test.obj'
-    
-    # OBJファイルの読み込み
-    mesh = load_obj(obj_path)
-    
-    # ボーンの作成
-    bones = create_bones()
-    
-    # 各頂点に対するボーンの影響を設定
-    vertex_weights = assign_vertex_weights(mesh, bones)
-    
-    # ボーンの表示
-    display_bones(bones)
-    
-    # ボーン情報をファイルに保存
-    save_bone_info(bones, 'bone_info.txt')
-    
-    # ボーンを動かしてみる（例としてbone1を移動）
-    bones[1].move([0.5, 0.5, 0.0])  # ボーン1を少し移動
-    
-    # ボーンの移動に基づいてメッシュを変形
-    deform_mesh(mesh, bones, vertex_weights)
-    
-    # OBJ形式でメッシュをエクスポート
-    o3d.io.write_triangle_mesh("output_model.obj", mesh, write_ascii=True)
-
-    print("メッシュとボーン情報を出力しました。")
+if __name__ == "__main__":    
+    main("output/mesh/me_fish_data(1).obj","output_bone_mesh")
