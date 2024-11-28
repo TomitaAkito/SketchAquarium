@@ -151,13 +151,17 @@ def regitFish():
     filePath = "./output/mask/" + file + "_mask3.png"
     maskPath = "./output/mask/" + file + "_mask3.png"
     obj.creating3D(filePath, maskPath, file, 100, False)
-    createTimer.stop()
     
     # UVを貼る
     meshpath = "./output/mesh/me_" + file + ".obj"
     onlyFishImg = "./output/onlyfish/only" + file + ".png"
     texture.makeUVs(meshpath,onlyFishImg,meshpath,file)
     
+    createTimer.stop()
+    
+    #? ------------------------------------------------------
+    #? 管理番号の設定
+    #? ------------------------------------------------------
     # flagがTrueならテンプレートを使用
     if g_templateFlag == True:
         # templateに加算する
@@ -165,7 +169,9 @@ def regitFish():
     else:
         g_fishNum += 1
         
-    # 魚をzip化する
+    #? ------------------------------------------------------
+    #? さかなのzip化
+    #? ------------------------------------------------------
     module.printTerminal("魚をzip化(送信用フォルダ化)",2)
     zipFish(meshpath,"./output/onlyfish/up2down_" + file + ".png")
     

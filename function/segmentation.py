@@ -232,6 +232,8 @@ def SSFromIMG(maskimg,filename):
     # Regrow処理の結果を用いて連結領域における面積最少の切断面(くびれ)を検索するMinCut処理
     minCut(maskimg,maskNum,filename)
     
+    return maskNum
+    
 
 if __name__ == "__main__":
     imgPath = "./output/mask/template(1)_mask3.png"
