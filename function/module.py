@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 #?----------------------------------------------------
-#? 自作モジュール
+#? 自作の便利そうなモジュール
 #?----------------------------------------------------
 
 def namingFile(name,extension,dirPath):
@@ -103,54 +103,6 @@ def getImgFish(fishNum,templateNum):
         return serchPath
     else:
         return "./output/onlyfish/up2down_template("+str(templateNum)+").png"
-
-def calculate_centroids(image_path,radius = 10,showFlag = False):
-    """
-    二値化された画像において、各白領域の重心を計算する関数。
-    
-    引数:
-    image_path (str): 二値化画像のファイルパス
-    
-    戻り値:
-    list: 重心の座標のリスト [(x1, y1), (x2, y2), ...] 形式
-    """
-    # 画像を読み込む
-    binary_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    
-    if binary_image is None:
-        raise ValueError(f"画像の読み込みに失敗しました: {image_path}")
-    
-    # 画像が二値化されていない場合、二値化処理を行う
-    _, binary_image = cv2.threshold(binary_image, 127, 255, cv2.THRESH_BINARY)
-
-    # 連結成分をラベリング
-    num_labels, labels = cv2.connectedComponents(binary_image)
-
-    centroids = []
-    # 画像をカラー画像に変換（赤色を表示するため）
-    color_image = cv2.cvtColor(binary_image, cv2.COLOR_GRAY2BGR)
-    
-    for label in range(1, num_labels):  # 0は背景なので除外
-        # ラベルごとの座標を抽出
-        coords = np.column_stack(np.where(labels == label))
-        
-        # 重心を計算
-        centroid = np.mean(coords, axis=0)
-        centroids.append(tuple(centroid))
-        
-        # 重心の座標を取得
-        x, y = int(centroid[1]), int(centroid[0])  # (x, y) -> (列, 行)
-
-        # 重心を中心に円を描く
-        cv2.circle(color_image, (x, y), radius, (0, 0, 255), 2)  # 赤色の円を描く
-
-    if showFlag:
-        # 画像を表示
-        cv2.imshow("Marked Image", color_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-    return centroids
 
 
 def calculate_longest_line_through_centroid(image_path):
@@ -263,5 +215,4 @@ def printTerminal(string,color = 1):
 
     
 if __name__ == "__main__":
-    # print(namingFile("fish_data",".png","./inputimg"))
-    calculate_longest_line_through_centroid("./output/ss/2_regrowtemplate(1)_common_1.png")
+    print(namingFile("fish_data",".png","./inputimg"))

@@ -38,6 +38,7 @@ def split(img,filename):
     img_erosion2 = img.copy()
     i = 0
     spNum = 0
+    print()
     
     while True:
         # 画像を収縮する
@@ -218,6 +219,9 @@ def SSFromIMG(maskimg,filename):
 
     Args:
         maskimg (画像): マスク画像
+        filename: 拡張子なしのファイル名
+    Returns:
+        maskNum: 共有部位の枚数
     """
     # 結合領域を大まかに分割するsplit処理
     maskNum = split(maskimg,filename)
@@ -229,8 +233,8 @@ def SSFromIMG(maskimg,filename):
     # Split処理で分断された領域を膨張するRegrow処理
     regrow(maskimg,maskNum,filename)
     
-    # Regrow処理の結果を用いて連結領域における面積最少の切断面(くびれ)を検索するMinCut処理
-    minCut(maskimg,maskNum,filename)
+    # # Regrow処理の結果を用いて連結領域における面積最少の切断面(くびれ)を検索するMinCut処理
+    # minCut(maskimg,maskNum,filename)
     
     return maskNum
     
