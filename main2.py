@@ -19,7 +19,8 @@ from function import make_texture as texture # UV関係を作る
 from function import settimer  # 時間測定
 from function import painttool as paint  # ペイントツール
 from function import module # 共通するモジュール
-
+from function import segmentation as sg # セグメンテーションを行う
+from function import born_3d
 from function import pre_createobj as obj
 
 #* ======================================================================================== 
@@ -159,6 +160,26 @@ def regitFish():
     
     createTimer.stop()
     
+    # ? ------------------------------------------------------
+    # ? ボーンを生成
+    # ? ------------------------------------------------------
+    module.printTerminal("ボーンを生成", 2)
+
+    bornTimer = settimer.timer("-->born-Timer")
+    
+    # セグメンテーションから関節部分を推定
+    mask = cv2.imread(maskPath,cv2.IMREAD_GRAYSCALE)
+    joint_num = sg.SSFromIMG(mask,file)
+
+    # 関節の数を基にボーンリストを作成
+    born_list = born_3d.MakeBornList(file,joint_num)
+    print(born_list)
+    
+    # ボーン情報をtxtで出力
+    born_3d.create_bone_structure(born_list,file,"output/born/")
+
+    bornTimer.stop()
+    
     #? ------------------------------------------------------
     #? 管理番号の設定
     #? ------------------------------------------------------
@@ -173,14 +194,13 @@ def regitFish():
     #? さかなのzip化
     #? ------------------------------------------------------
     module.printTerminal("魚をzip化(送信用フォルダ化)",2)
-    zipFish(meshpath,"./output/onlyfish/up2down_" + file + ".png")
+    zipFish(meshpath,"./output/onlyfish/up2down_" + file + ".png","./output/born/" + file + ".txt")
     
     return download_file_new()
 
-#! 魚をzip化する
-def zipFish(fishPath,pngPath):
-    """魚をZIP化します
-    """
+#! 魚をZIP化する
+def zipFish(fishPath, pngPath, txtPath):
+    """魚をZIP化します"""
     global g_upnum
     
     # パスを取得
@@ -190,15 +210,18 @@ def zipFish(fishPath,pngPath):
     # 情報をターミナルに出力
     print(fishPath)
     print(pngPath)
+    print(txtPath)
     
-    # OBJまたはPNGがなければエラーを送信
-    if not os.path.exists(fishPath) or not os.path.exists(pngPath):
+    # 必須ファイルの存在を確認
+    if not os.path.exists(fishPath) or not os.path.exists(pngPath) or not os.path.exists(txtPath):
         return jsonify({"error": "File not found"}), 404
     
     # ZIPファイルを作成
     with zipfile.ZipFile(zipPath, 'w') as zipf:
-        zipf.write(fishPath, os.path.basename(fishPath))
-        zipf.write(pngPath, os.path.basename(pngPath))
+        zipf.write(fishPath, os.path.basename(fishPath))  # 魚のOBJ
+        zipf.write(pngPath, os.path.basename(pngPath))    # 魚の画像
+        zipf.write(txtPath, os.path.basename(txtPath))    # ボーン情報
+
 
 #! ペイントツールを起動させる(リフレッシュを兼ねてホームページを返す)
 @app.route('/paint')

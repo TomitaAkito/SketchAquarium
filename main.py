@@ -14,7 +14,6 @@ from function import make_texture as texture  # UV関係を作る
 from function import settimer  # 時間測定
 from function import painttool as paint  # ペイントツール
 from function import module  # 共通するモジュール
-
 from function import segmentation as sg # セグメンテーションを行う
 from function import born_3d
 
@@ -73,8 +72,10 @@ def regitFish(g_fishNum=0, g_templateNum=1):
 
     # 関節の数を基にボーンリストを作成
     born_list = born_3d.MakeBornList(file,joint_num)
+    print(born_list)
     
-    
+    # ボーン情報をtxtで出力
+    born_3d.create_bone_structure(born_list,file,"output/born/")
 
     bornTimer.stop()
 

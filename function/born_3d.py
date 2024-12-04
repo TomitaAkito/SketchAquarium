@@ -1,94 +1,67 @@
 import numpy as np
-import trimesh
-import open3d as o3d
-import matplotlib.pyplot as plt
 import cv2
 
-
-def create_bone_structure(bone_list, obj_path, file_name):
+def create_bone_structure(bone_list, file_name, file_path):
     """
-    ボーン構築とメッシュのスキンウェイトを施し、メッシュと情報を保存する。
+    ボーン構築し、情報を保存する。
 
     Args:
-        bone_list (list): ボーンリスト。形式: [[親[x, y, z], 子1[x1, y1, z1], 子2[x2, y2, z2], ...], ...]
-        obj_path (str): メッシュのパス。
+        bone_list (list): ボーンリスト。形式: [[親[x, y, z], 関節[x1, y1, z1], 部位[x2, y2, z2]], ...]
         file_name (str): 保存するファイル名（拡張子なし）。
+        file_path (str): 保存するディレクトリ
     """
-    # メッシュをロード
-    mesh = trimesh.load_mesh(obj_path)
+    bone_data = []  # ボーンの情報を格納
+    parent_map = {}  # 親の位置の一致を管理する辞書
+    unique_bone_set = set()  # 出力の重複を防ぐためのセット
 
-    # ボーンデータを構築
-    bone_data = []
-    for bone in bone_list:
-        parent_position = np.array(bone[0])
-        for child_position in bone[1:]:
-            child_position = np.array(child_position)
-            bone_data.append((parent_position, child_position))
+    for bone_index, bone in enumerate(bone_list):
+        parent_position = tuple(bone[0])  # 親の位置
+        joint_position = tuple(bone[1])  # 関節の位置（タプルに変換）
+        part_position = tuple(bone[2])  # 部位の位置（タプルに変換）
+
+        # 親の登録と取得
+        if parent_position not in parent_map:
+            parent_name = f"Bone_{len(parent_map)}_Parent"
+            parent_map[parent_position] = parent_name
+            bone_data.append((parent_name, parent_position, None))  # 親情報追加
+
+        parent_name = parent_map[parent_position]
+
+        # 子（関節と部位）のボーンデータを追加
+        joint_name = f"Bone_{bone_index}_Joint"
+        part_name = f"Bone_{bone_index}_Part"
+
+        # 重複を防いで追加
+        if (joint_name, joint_position, parent_name) not in unique_bone_set:
+            bone_data.append((joint_name, joint_position, parent_name))
+            unique_bone_set.add((joint_name, joint_position, parent_name))
+
+        if (part_name, part_position, joint_name) not in unique_bone_set:
+            bone_data.append((part_name, part_position, joint_name))
+            unique_bone_set.add((part_name, part_position, joint_name))
+
+    # 保存先のパスを結合
+    txt_path = f"{file_path}{file_name}.txt"
+    print(txt_path)
 
     # ボーン情報をtxtに保存
-    txt_path = f"{file_name}.txt"
     with open(txt_path, "w") as f:
-        for i, (parent, child) in enumerate(bone_data):
-            parent_name = f"Bone_{i}_Parent"
-            child_name = f"Bone_{i}_Child"
-            world_position = child
-            f.write(
-                f"Bone: {child_name}, World Position: {world_position.tolist()}, Parent: {parent_name}\n"
-            )
-
-    # メッシュにスキンウェイトを適用 (擬似的に頂点カラーとしてボーンの影響範囲を適用)
-    vertices = mesh.vertices
-    weights = np.zeros((len(vertices), len(bone_data)))
-
-    for i, (parent, child) in enumerate(bone_data):
-        direction = child - parent
-        for j, vertex in enumerate(vertices):
-            vec_to_bone = vertex - parent
-            projection = np.dot(vec_to_bone, direction) / np.linalg.norm(direction)
-            weights[j, i] = max(
-                0, 1 - abs(projection)
-            )  # ボーンへの距離でスキンウェイトを設定
-
-    # 頂点カラーとしてウェイトを設定 (擬似的に視覚化)
-    mesh.visual.vertex_colors = (weights.max(axis=1) * 255).astype(np.uint8)
-
-    # メッシュを保存
-    output_obj_path = f"{file_name}.obj"
-    mesh.export(output_obj_path)
+        for child_name, world_position, parent_name in bone_data:
+            # 座標値に空白を追加
+            formatted_position = f"[ {world_position[0]} , {world_position[1]} , {world_position[2]} ]"
+            if parent_name:  # 子ボーン
+                f.write(
+                    f"Bone: {child_name}, World Position: {formatted_position}, Parent: {parent_name}\n"
+                )
+            else:  # 親ボーン
+                f.write(
+                    f"Bone: {child_name}, World Position: {formatted_position}, Parent: None\n"
+                )
 
     print(f"ボーン情報を保存しました: {txt_path}")
-    print(f"スキンウェイト適用メッシュを保存しました: {output_obj_path}")
-    visualize_with_open3d(mesh, weights)
 
 
-def visualize_with_open3d(mesh, weights):
-    """Open3Dを使ってメッシュを可視化
 
-    Args:
-        mesh (o3d): メッシュ
-        weights : ウェイト
-    """
-    # 頂点カラーをスケール補正
-    scale_factor = 5  # 明るさ補正係数（必要に応じて調整）
-    vertex_colors = weights.max(axis=1)  # 各頂点の最大ウェイトを使用
-    vertex_colors_scaled = (vertex_colors * scale_factor).clip(
-        0, 1
-    )  # 明るさ補強後0-1に正規化
-
-    # カラーマップを適用
-    cmap = plt.cm.viridis  # 他のカラーマップも利用可能
-    vertex_colors_rgb = cmap(vertex_colors_scaled)[:, :3]  # RGB成分を取得
-
-    # Open3D用のメッシュを構築
-    o3d_mesh = o3d.geometry.TriangleMesh()
-    o3d_mesh.vertices = o3d.utility.Vector3dVector(mesh.vertices)
-    o3d_mesh.triangles = o3d.utility.Vector3iVector(mesh.faces)
-    o3d_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors_rgb)
-
-    # メッシュを可視化
-    o3d.visualization.draw_geometries(
-        [o3d_mesh], window_name="Weight Visualization", width=800, height=600
-    )
     
     
 def calculate_centroids(image_path, radius=10, showFlag=False):
@@ -139,19 +112,18 @@ def calculate_centroids(image_path, radius=10, showFlag=False):
     return [0, 0]
 
 
-    
-    
-def MakeBornList(file_name, mask_num, mask_directory="output/ss/", height=100):
-    """関節の数を基にボーンリストを作成
+def MakeBornList(file_name, mask_num, mask_directory="output/ss/", height=100, scaleFactor=0.0004):
+    """関節の数を基にボーンリストを作成（相対参照とスケール変換付き）
 
     Args:
         file_name: 拡張子なしのファイル名
         mask_num: マスクの数
         mask_directory: マスクが格納されているディレクトリ. Defaults to "output/ss/".
         height: 魚が生成される高さ. Defaults to 100.
+        scaleFactor: スケール変換用の係数. Defaults to 0.0004.
 
     Returns:
-        born_list: ボーンの情報(全体[1stボーン[親[],関節[],部位[]],2ndボーン[...]])
+        born_list: ボーンの情報（全体[1stボーン[親[],関節[],部位[]],2ndボーン[...]]）
     """
     def add_z_coordinate(point, z_value):
         """[x, y]形式のポイントにz座標を追加して[x, y, z]形式に変換"""
@@ -160,16 +132,26 @@ def MakeBornList(file_name, mask_num, mask_directory="output/ss/", height=100):
             return [0, 0, z_value]  # デフォルト値
         return [point[0], point[1], z_value]
 
+    def apply_relative_and_scale_transform(base_point, target_point):
+        """基準点を基に相対座標化し、スケール変換を適用"""
+        relative_point = [
+            (target_point[0] - base_point[0]) * scaleFactor,
+            (target_point[1] - base_point[1]) * scaleFactor,
+            (target_point[2] - base_point[2]) * scaleFactor,
+        ]
+        return relative_point
+
     born_list = []
     z_value = height / 2
 
     # 最も大きい部分(親・胴体)のポイント
     mask_path = mask_directory + "2_regrow_" + file_name + "_" + str(mask_num - 1) + ".png"
     body_point = add_z_coordinate(calculate_centroids(mask_path), z_value)
+    relative_body_point = apply_relative_and_scale_transform([0,0,0],body_point)
 
     # 例外処理
     if mask_num <= 0:
-        return [body_point]
+        return [[0, 0, 0]]  # ルート座標のみ
 
     # マスクがなくなるまで
     for i in range(0, mask_num):
@@ -181,12 +163,16 @@ def MakeBornList(file_name, mask_num, mask_directory="output/ss/", height=100):
         mask_path = mask_directory + "2_regrow" + file_name + "_small_" + str(i) + ".png"
         part_point = add_z_coordinate(calculate_centroids(mask_path), z_value)
 
+        # 相対参照 + スケール変換
+        relative_joint_point = apply_relative_and_scale_transform(body_point, joint_point)
+        relative_part_point = apply_relative_and_scale_transform(body_point, part_point)
+
         # 全体[1stボーン[親[],関節[],部位[]],2ndボーン[...]] になるようリストを作成
         # 〇番目のボーン
-        born_list.append([body_point, joint_point, part_point])
+        born_list.append([relative_body_point, relative_joint_point, relative_part_point])
     
-    print(born_list)
     return born_list
+
 
 
 
