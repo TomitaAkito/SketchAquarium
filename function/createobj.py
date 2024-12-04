@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import open3d as o3d
 import os
+from scipy.spatial import KDTree
+
 
 
 def calcCenterX(points_3d_base):
@@ -105,12 +107,12 @@ def createPointCloudFromIMG(image, height, maskimg):
                 top_he = base_he = height / 2
 
         # 条件に一致するとリストに加える
-        if x % 5 == 0 and y % 5 == 0:
+        if x % 10 == 0 and y % 10 == 0:
             base_points.append([x, y, base_he])
             top_points.append([x, y, top_he])
 
     # 輪郭の抽出
-    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
     contour_points = []
     for contour in contours:
         contour = contour.squeeze()
@@ -121,13 +123,44 @@ def createPointCloudFromIMG(image, height, maskimg):
     for contour in contour_points:
         for point in contour:
             x, y = point
-            if x % 3 == 0 and y % 3 == 0:
+            if x % 1 == 0 and y % 1 == 0: # 調整しやすいようこの組み方を…
                 side_points.append([x, y, height / 2])
+    
+    return base_points,top_points,side_points
 
-    # 3次元点群を連結
-    points_3d = np.vstack((base_points, top_points, side_points))
 
-    return points_3d
+def get_white_regions(mask, y):
+    """
+    指定されたy座標における白領域の開始点と終了点を取得する関数
+
+    Args:
+        mask (numpy.ndarray): 2値化マスク画像 (白: 255, 黒: 0)
+        y (int): 対象のy座標
+
+    Returns:
+        list: [1つ目の白領域[[start_x, start_y], [end_x, end_y]], ...]形式の座標リスト
+    """
+    # y座標の横ラインの画素値を取得
+    row = mask[y, :]
+    
+    # 白(255)の連続区間を検出
+    regions = []
+    in_region = False
+    start = 0
+
+    for x in range(len(row)):
+        if row[x] == 255 and not in_region:  # 白領域の開始
+            start = x
+            in_region = True
+        elif row[x] == 0 and in_region:  # 白領域の終了
+            regions.append([[start, y], [x - 1, y]])
+            in_region = False
+    
+    # 最後まで白領域が続いていた場合の処理
+    if in_region:
+        regions.append([[start, y], [len(row) - 1, y]])
+
+    return regions
 
 
 def printAry(mesh):
@@ -148,119 +181,61 @@ def printAry(mesh):
     print("Vertices:")
     print(vertex_colors)
 
-def createMesh(points_3d):
-    """点群からメッシュを手動で作成
+
+def estimate_radius(points, k=8):
+    """
+    点群の近傍距離に基づいて適切な半径を推定
 
     Args:
-        points_3d : 座標
+        points (np.ndarray): Nx3の点群データ
+        k (int): 最近傍点の数
 
     Returns:
-        メッシュ
+        float: 推定された適切な半径
     """
-    # NumPy配列からOpen3Dの点群オブジェクトを作成
-    point_cloud = o3d.geometry.PointCloud()
-    point_cloud.points = o3d.utility.Vector3dVector(points_3d)
+    tree = KDTree(points)
+    distances, _ = tree.query(points, k=k+1)  # 自身を含むためk+1
+    mean_distance = np.mean(distances[:, 1:])  # 自身を除外
+    return mean_distance
 
-    # 点群の法線を計算
-    point_cloud.estimate_normals(
-        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30)
+def createMesh(points, radii=None):
+    """
+    点群からBall Pivoting Algorithm (BPA) を使用してメッシュを生成
+
+    Args:
+        points (np.ndarray): 点群データ (Nx3 の NumPy 配列)
+        radii (list[float]): BPAに使用する半径リスト (Noneなら自動推定)
+
+    Returns:
+        o3d.geometry.TriangleMesh: 生成されたメッシュ
+    """
+    point_cloud = o3d.geometry.PointCloud()
+    point_cloud.points = o3d.utility.Vector3dVector(points)
+
+    # 法線推定
+    point_cloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    point_cloud.orient_normals_consistent_tangent_plane(10)
+    
+    # 半径を自動推定
+    if radii is None:
+        estimated_radius = estimate_radius(points)
+        radii = [estimated_radius * i for i in np.linspace(0.01, 3.0, 10)]
+    
+    # BPAでメッシュ生成
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+        point_cloud,
+        o3d.utility.DoubleVector(radii)
     )
 
-    # 点群を可視化
-    # o3d.visualization.draw_geometries([point_cloud])
+    print(radii)
 
-    # ポアソン再構成を使用してメッシュを生成
-    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Warning) as cm:
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            point_cloud, depth=9
-        ) 
+    # 後処理
+    mesh.remove_duplicated_triangles()
+    mesh.remove_degenerate_triangles()
+    mesh.remove_unreferenced_vertices()
     
-    # faces = np.array([]).reshape(0, 3)  # 初期化
-
-    # # points_3dからx, y, z座標を抽出
-    # x = points_3d[:, 0]
-    # y = points_3d[:, 1]
-    # z = points_3d[:, 2]
-
-    # maxfloor = max(z)  # 最大のz座標を取得
-    # corrh = 0.25  # 補正値
-
-    # # メッシュ生成のループ
-    # for i in range(len(z) - 1):
-    #     p1 = i  # 頂点インデックス
-    #     p2 = i + 1
-    #     p3 = i + 2
-    #     p4 = i + 3
-
-    #     if z[i + 1] != maxfloor + corrh:
-    #         faces = np.append(faces, np.array([[p1, p3, p4]]), axis=0)
-    #         faces = np.append(faces, np.array([[p1, p4, p2]]), axis=0)
-    #     else:
-    #         faces = np.append(faces, np.array([[p1, p2, p3]]), axis=0)
-
-    # # メッシュ生成
-    # mesh = o3d.geometry.TriangleMesh()
-    # mesh.vertices = o3d.utility.Vector3dVector(points_3d)
-    # mesh.triangles = o3d.utility.Vector3iVector(faces.astype(int))
-
     return mesh
 
-def removeVerticesByMaskAndBounds(mesh, mask, height):
-    """メッシュからマスクに対応する頂点を除去し、白領域のx,y座標の最大値・最小値外にある頂点を除去する
-
-    Args:
-        mesh : Open3Dのメッシュ
-        mask : マスク画像
-        height : 高さ
-
-    Returns:
-        修正されたメッシュ
-    """
-    vertices = np.asarray(mesh.vertices)
-    mask = cv2.flip(mask, 0)  # マスク画像を上下反転
-    h, w = mask.shape
-
-    # マスクの白領域のx,y座標の最大値・最小値を取得
-    mask_indices = np.argwhere(mask > 0)
-    y_min, x_min = mask_indices.min(axis=0)
-    y_max, x_max = mask_indices.max(axis=0)
-
-    # マスクに対応する頂点および白領域外の頂点を除去
-    vertices_to_remove = []
-    for i, vertex in enumerate(vertices):
-        x, y, z = vertex
-        if x < x_min or x > x_max or y < y_min or y > y_max:
-            vertices_to_remove.append(i)
-            continue
-        if x < 0 or x >= w or y < 0 or y >= h:
-            vertices_to_remove.append(i)
-            continue
-        if mask[int(y), int(x)] == 0:
-            vertices_to_remove.append(i)
-
-    mesh.remove_vertices_by_index(vertices_to_remove)
-
-    return mesh
-
-def get_mesh_bounds(mesh):
-    """
-    メッシュの頂点の最大値と最小値を取得する
-
-    Args:
-        mesh: Open3Dのメッシュオブジェクト
-
-    Returns:
-        min_bound: 各軸の最小値 [min_x, min_y, min_z]
-        max_bound: 各軸の最大値 [max_x, max_y, max_z]
-    """
-    # メッシュの頂点をNumPy配列に変換
-    vertices = np.asarray(mesh.vertices)
-    
-    # 各軸の最小値と最大値を計算
-    min_bound = vertices.min(axis=0)
-    max_bound = vertices.max(axis=0)
-    
-    return min_bound, max_bound
 
 def saveOBJFile(filePath, vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors):
     """OBJを出力する
@@ -445,6 +420,94 @@ def make_normals_outward(mesh):
     
     return mesh
 
+def remove_black_region_by_centroid_loop(mesh, mask, height):
+    """
+    メッシュの各三角形を順次処理し、重心がマスクの黒領域にある場合に削除します。
+
+    Args:
+        mesh (o3d.geometry.TriangleMesh): Open3Dのメッシュ
+        mask (np.ndarray): マスク画像 (2D numpy array)
+        height (float): メッシュの高さスケール（必要なら使用）
+
+    Returns:
+        o3d.geometry.TriangleMesh: 修正されたメッシュ
+    """
+
+    # メッシュの頂点と三角形を取得
+    vertices = np.asarray(mesh.vertices)
+    triangles = np.asarray(mesh.triangles)
+
+    # マスクのサイズ取得
+    mask_h, mask_w = mask.shape
+
+    # 有効な三角形を格納するリスト
+    valid_triangles = []
+
+    # 各三角形を処理
+    for triangle in triangles:
+        # 三角形の頂点インデックス
+        v1, v2, v3 = triangle
+
+        # 三角形の頂点座標
+        p1, p2, p3 = vertices[v1], vertices[v2], vertices[v3]
+
+        # 重心を計算
+        centroid = (p1 + p2 + p3) / 3.0
+
+        # 重心のXY座標をマスクのインデックスに変換
+        x_idx = int(((centroid[0] - vertices[:, 0].min()) / (vertices[:, 0].max() - vertices[:, 0].min())) * (mask_w - 1))
+        y_idx = int(((centroid[1] - vertices[:, 1].min()) / (vertices[:, 1].max() - vertices[:, 1].min())) * (mask_h - 1))
+
+        # インデックスがマスクの範囲内か確認
+        if 0 <= x_idx < mask_w and 0 <= y_idx < mask_h:
+            # 重心が黒領域にない場合、有効な三角形とする
+            if mask[y_idx, x_idx] != 0:
+                valid_triangles.append(triangle)
+
+    # 新しいメッシュを作成
+    new_mesh = o3d.geometry.TriangleMesh()
+    new_mesh.vertices = mesh.vertices  # 頂点は変更なし
+    new_mesh.triangles = o3d.utility.Vector3iVector(valid_triangles)
+
+    return new_mesh
+
+
+def showPoint(points_3d):
+    
+    # NumPy配列からOpen3Dの点群オブジェクトを作成
+    point_cloud = o3d.geometry.PointCloud()
+    point_cloud.points = o3d.utility.Vector3dVector(points_3d)
+
+    # 点群の法線を計算
+    point_cloud.estimate_normals(
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=1.0, max_nn=30)
+    )
+
+    # 点群を可視化
+    o3d.visualization.draw_geometries([point_cloud])
+    
+def save_ply(filename, points):
+    """点群をPLYファイルとして保存する
+
+    Args:
+        filename (str): 保存先のファイル名
+        points (numpy.ndarray): 点群（N x 3 の形式）
+    """
+    with open(filename, 'w') as f:
+        # ヘッダーを書く
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {len(points)}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("end_header\n")
+
+        # 点群データを書く
+        for point in points:
+            f.write(f"{point[0]} {point[1]} {point[2]}\n")
+
+
 def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     """3Dオブジェクトを生成する
 
@@ -469,16 +532,39 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     _, thresh = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
 
     # 画像全体から3次元点群を生成
-    points_3d = createPointCloudFromIMG(thresh, height, mask)
+    base_points,top_points,side_points = createPointCloudFromIMG(thresh, height, mask)
+    
+    # 3次元点群を連結
+    all_points = np.vstack((base_points, top_points, side_points))
+    base_points = np.vstack((base_points, side_points))
+    top_points = np.vstack((top_points, side_points))
 
+    # 点群の出力
+    # ply_path = f"./output/base_points_{exFile}.ply"
+    # save_ply(ply_path, np.array(base_points))
+    # print(f"PLYファイルとして保存されました: {ply_path}")
+
+    # 以後の処理のため、numpy配列に変更
+    base_points = np.array(base_points)
+    top_points = np.array(top_points)
+    
+    # 点群を表示
+    # showPoint(base_points)
+    # showPoint(top_points)
+    # showPoint(all_points)
+    
     # メッシュを生成
-    mesh = createMesh(points_3d)
-
-    # マスクに対応する頂点および白領域外の頂点を除去
-    mesh = removeVerticesByMaskAndBounds(mesh, mask, height)
+    base_mesh = createMesh(base_points)
+    top_mesh = createMesh(top_points)
+    mesh = base_mesh + top_mesh
+    
+    # mesh = remove_black_region_by_centroid_loop(mesh,cv2.flip(mask, 0) , height)
     
     # すべての法線ベクトルを外向きに修正
     mesh = make_normals_outward(mesh)
+    
+    # Meshを表示
+    # o3d.visualization.draw_geometries([mesh])
 
     # OBJとして出力
     vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors = disassemblyMesh(mesh)

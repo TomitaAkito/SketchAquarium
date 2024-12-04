@@ -131,60 +131,6 @@ def findFishParts(imgPath, filename):
     rimg = cv2.flip(img_cut_alpha, 0)
     cv2.imwrite("./output/onlyfish/up2down_" + exFile + ".png", rimg)
     
-    # # 画像をコピーしておく
-    # only_img = img_cut.copy()
-
-    # # 切り抜いた画像をグレースケールに変換
-    # gray = cv2.cvtColor(img_cut, cv2.COLOR_BGR2GRAY)
-
-    # # 再度二値化処理
-    # _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
-
-    # # 輪郭を再度検出
-    # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # # 最大の輪郭を魚の輪郭と見なす
-    # fish_contour = max(contours, key=cv2.contourArea)
-
-    # # 最も幅が広い部分を特定
-    # widest_point = findWidestPoint(fish_contour)
-
-    # # 身体の分割線を決定
-    # split_line = findNarrowestPointAfter(fish_contour, widest_point)
-
-    # body_contour = []
-    # tail_contour = []
-
-    # # 輪郭の点をボディ部分としっぽ部分に分ける
-    # for point in fish_contour:
-    #     if point[0][0] < split_line:
-    #         body_contour.append(point)
-    #     else:
-    #         tail_contour.append(point)
-
-    # body_contour = np.array(body_contour)
-    # tail_contour = np.array(tail_contour)
-
-    # # ボディ部分を青色で描画
-    # cv2.drawContours(img_cut, [body_contour], -1, (255, 0, 0), 2)
-
-    # # しっぽ部分を赤色で描画
-    # cv2.drawContours(img_cut, [tail_contour], -1, (0, 0, 255), 2)
-
-    # # 分割ラインを黄色で描画
-    # y_min, y_max = fish_contour[:, 0, 1].min(), fish_contour[:, 0, 1].max()
-    # cv2.line(img_cut, (split_line, y_min), (split_line, y_max), (0, 255, 255), 2)
-
-    # # 輪郭のx座標の最小値と最大値を描画
-    # x_min, x_max = fish_contour[:, :, 0].min(), fish_contour[:, :, 0].max()
-    # cv2.line(img_cut, (x_min, y_min), (x_min, y_max), (255, 255, 255), 2)
-    # cv2.line(img_cut, (x_max, y_min), (x_max, y_max), (255, 255, 255), 2)
-
-    # # 探索開始位置を描画
-    # cv2.line(img_cut, (widest_point, y_min), (widest_point, y_max), (60, 170, 255), 2)
-
-    # # 結果を保存
-    # cv2.imwrite("./output/split/split" + exFile + ".png", img_cut)
 
     return img_cut
 

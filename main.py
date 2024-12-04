@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # 自作関数はそれぞれfunctionフォルダに格納しています
 from function import camera  # カメラを使う
 from function import extraction_fish  # さかなの輪郭を使った処理(抽出・部位推定)
-from function import createobj as obj  # 3DOBJを作る
+from function import pre_createobj as obj  # 3DOBJを作る
 from function import make_texture as texture  # UV関係を作る
 from function import settimer  # 時間測定
 from function import painttool as paint  # ペイントツール
@@ -89,9 +89,13 @@ def main():
     # 初期設定
     module.initmain()
 
+    result = []
     # 魚を生成する
-    regitFish()
-
+    for i in range(1,11):
+        timer = settimer.timer("-->Timer")
+        regitFish(0,i)
+        result.append(timer.stop())
+    print(result)
 
 if __name__ == "__main__":
     main()
