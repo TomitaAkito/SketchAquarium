@@ -3,6 +3,8 @@ import sys
 import os
 import colorama
 from colorama import Fore, Back, Style
+import cv2
+import random
 
 # 現在のディレクトリをシステムパスに追加
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -33,7 +35,6 @@ def regitFish(g_fishNum=0, g_templateNum=1):
 
     filePath = "./inputimg/" + file
     img = extraction_fish.findFishParts(filePath, file)
-    import cv2
 
     cv2.imwrite("./static/images/new.png", img)
 
@@ -78,6 +79,15 @@ def regitFish(g_fishNum=0, g_templateNum=1):
     born_3d.create_bone_structure(born_list,file,"output/born/")
 
     bornTimer.stop()
+    
+    #? ------------------------------------------------------
+    #? 管理番号の設定
+    #? ------------------------------------------------------
+    # flagがTrueならテンプレートを使用
+    if g_templateFlag == True:
+        # さかなをランダムな数で拡大・縮小する
+        obj.scaling_obj(meshpath,module.rand_rete(2.0,0.3))
+
 
 def main():
     # ターミナルに色付き文字を出力するための設定

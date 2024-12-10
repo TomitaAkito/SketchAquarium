@@ -38,7 +38,7 @@ def addTemplateNum(addNum = 1):
         addNum (int): 加算する数字. Defaults to 1.
     """
     global g_templateNum
-    if g_templateNum <= 14:
+    if g_templateNum <= 13:
         g_templateNum += addNum
     else:
         g_templateNum = 1
@@ -187,6 +187,8 @@ def regitFish():
     if g_templateFlag == True:
         # templateに加算する
         addTemplateNum()
+        # さかなをランダムな数で拡大・縮小する
+        # obj.scaling_obj(meshpath,module.rand_rete(2.0,0.3))
     else:
         g_fishNum += 1
         

@@ -109,9 +109,18 @@ def createPointCloudFromIMG(image, height):
         if bf_y != y:
             
             top_he = base_he = height / 2
-            # マスクから白領域を取得
-            white_regions = get_white_regions(image,int(y))
             
+            # y座標が範囲内か確認
+            if int(y) < 0 or int(y) >= image.shape[0]:
+                continue
+
+            # マスクから白領域を取得
+            white_regions = get_white_regions(image, int(y))
+
+            # 白領域がない場合はスキップ
+            if not white_regions:
+                continue
+                        
             # yの中心地より上なら
             if center_y > y:
                 heightPixcel_y += heightPixcel_y
@@ -510,6 +519,46 @@ def save_ply(filename, points):
         # 点群データを書く
         for point in points:
             f.write(f"{point[0]} {point[1]} {point[2]}\n")
+
+def scaling_obj(mesh_path,rate=1.0):
+    """OBJファイルを拡大・縮小する関数
+    
+    Args:
+        mesh_path: OBJファイルのパス
+        rate: 拡大・縮小の倍率
+    """
+    print(rate)
+    
+    if not os.path.exists(mesh_path):
+        raise FileNotFoundError(f"ファイルが見つかりません: {mesh_path}")
+    
+    # 出力用のファイル名を生成
+    output_path = os.path.splitext(mesh_path)[0] + f".obj"
+
+    # 読み込んだOBJファイルを行ごとに処理
+    with open(mesh_path, 'r') as file:
+        lines = file.readlines()
+
+    scaled_lines = []
+    for line in lines:
+        if line.startswith('v '):  # 頂点情報を表す行
+            parts = line.split()
+            # 頂点座標 (x, y, z) を倍率でスケーリング
+            x, y, z = map(float, parts[1:4])
+            x *= rate
+            y *= rate
+            z *= rate
+            scaled_lines.append(f"v {x:.6f} {y:.6f} {z:.6f}\n")
+        else:
+            # その他の行はそのまま
+            scaled_lines.append(line)
+
+    # スケーリングした結果を新しいOBJファイルとして保存
+    with open(output_path, 'w') as file:
+        file.writelines(scaled_lines)
+
+    print(f"拡大・縮小後のOBJファイルを保存しました: {output_path}")
+
 
 
 def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):

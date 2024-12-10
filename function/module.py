@@ -5,6 +5,7 @@ import colorama
 from colorama import Fore, Back, Style
 import cv2
 import numpy as np
+import random
 
 #?----------------------------------------------------
 #? 自作の便利そうなモジュール
@@ -212,7 +213,15 @@ def printTerminal(string,color = 1):
     print(Fore.WHITE)
     print(Style.RESET_ALL+"",end="")
     
+def rand_rete(max=1.5,min=0.8):
+    """ランダムな数字を返す
 
+    Args:
+        max: 最大値. Defaults to 1.5.
+        min: 最小値. Defaults to 0.8.
+    """
+    return round(random.uniform(min,max),1)
+    
 
     
 if __name__ == "__main__":

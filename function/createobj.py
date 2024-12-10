@@ -508,6 +508,44 @@ def save_ply(filename, points):
             f.write(f"{point[0]} {point[1]} {point[2]}\n")
 
 
+def scaling_obj(mesh_path,rate=1.0):
+    """OBJファイルを拡大・縮小する関数
+    
+    Args:
+        mesh_path: OBJファイルのパス
+        rate: 拡大・縮小の倍率
+    """
+    if not os.path.exists(mesh_path):
+        raise FileNotFoundError(f"ファイルが見つかりません: {mesh_path}")
+    
+    # 出力用のファイル名を生成
+    output_path = os.path.splitext(mesh_path)[0] + f".obj"
+
+    # 読み込んだOBJファイルを行ごとに処理
+    with open(mesh_path, 'r') as file:
+        lines = file.readlines()
+
+    scaled_lines = []
+    for line in lines:
+        if line.startswith('v '):  # 頂点情報を表す行
+            parts = line.split()
+            # 頂点座標 (x, y, z) を倍率でスケーリング
+            x, y, z = map(float, parts[1:4])
+            x *= rate
+            y *= rate
+            z *= rate
+            scaled_lines.append(f"v {x:.6f} {y:.6f} {z:.6f}\n")
+        else:
+            # その他の行はそのまま
+            scaled_lines.append(line)
+
+    # スケーリングした結果を新しいOBJファイルとして保存
+    with open(output_path, 'w') as file:
+        file.writelines(scaled_lines)
+
+    print(f"拡大・縮小後のOBJファイルを保存しました: {output_path}")
+
+
 def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     """3Dオブジェクトを生成する
 
