@@ -26,7 +26,7 @@ def removeShade(img):
     return im_shadow
 
 
-def transform_by4(img, points, offset=5):
+def transform_by4(img, points, offset=10):
     """画像を透視変換を用いて切り抜く"""
     points = sorted(points, key=lambda x: x[1])
     top = sorted(points[:2], key=lambda x: x[0])

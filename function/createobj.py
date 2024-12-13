@@ -27,13 +27,52 @@ def calcCenterX(points_3d_base):
 
     return result
 
-def createPointCloudFromIMG(image, height, maskimg):
+def get_white_regions(mask, y):
+    """
+    指定されたy座標における白領域の開始点と終了点を取得する関数
+
+    Args:
+        mask (numpy.ndarray): 2値化マスク画像 (白: 255, 黒: 0)
+        y (int): 対象のy座標
+
+    Returns:
+        list: [[始点], [終点]]形式の座標リスト
+    """
+    # y座標の横ラインの画素値を取得
+    row = mask[y, :]
+    
+    # 白(255)の連続区間を検出
+    regions = []
+    in_region = False
+    start = 0
+
+    for x in range(len(row)):
+        if row[x] == 255 and not in_region:  # 白領域の開始
+            start = x
+            in_region = True
+        elif row[x] == 0 and in_region:  # 白領域の終了
+            regions.append([start, x - 1])
+            in_region = False
+    
+    # 最後まで白領域が続いていた場合の処理
+    if in_region:
+        regions.append([start, len(row) - 1])
+
+    return regions
+
+def get_near_point(points_list,new_point):
+    for point in points_list:
+        # もしx座標が一致しており，y座標が直近であれば
+        if new_point[0] == point[0] and (new_point[1]-10) == point[1]:
+            return point
+    return None
+
+def createPointCloudFromIMG(image, height):
     """画像から3D点群を生成する
 
     Args:
         image : 入力画像
         height : 押し出しの高さ
-        mask : マスク
     """
 
     # 出力結果と画像の向きを一緒にさせるため上下反転
@@ -71,11 +110,23 @@ def createPointCloudFromIMG(image, height, maskimg):
     for point in points_3d_base:
         # x,y座標を取得
         x, y, _ = point
-
-        # y座標が変わっていたら初期化
+        
+        # 前回と比べ，y座標が変わったら
         if bf_y != y:
+            
             top_he = base_he = height / 2
-            i += 1
+            
+            # y座標が範囲内か確認
+            if int(y) < 0 or int(y) >= image.shape[0]:
+                continue
+
+            # マスクから白領域を取得
+            white_regions = get_white_regions(image, int(y))
+
+            # 白領域がない場合はスキップ
+            if not white_regions:
+                continue
+                        
             # yの中心地より上なら
             if center_y > y:
                 heightPixcel_y += heightPixcel_y
@@ -84,32 +135,41 @@ def createPointCloudFromIMG(image, height, maskimg):
                 if heightPixcel_y < height / 2:
                     heightPixcel_y = height / 2
             bf_y = y
-
-        # iが範囲外に出ないようにする
-        if i >= len(center_xPerY):
-            i = len(center_xPerY) - 1
-
-        # 中心まで
-        if x < center_xPerY[i]:
-            # 高さの上限まで到達していなければ
-            if top_he < height / 2 + heightPixcel_y:
-                top_he += heightPixcel
-                base_he -= heightPixcel
-            # 到達していたら
-            else:
-                top_he = height
-                base_he = 0
-        # 中心以降
-        else:
-            top_he -= heightPixcel
-            base_he += heightPixcel
-            if top_he < base_he:
-                top_he = base_he = height / 2
-
-        # 条件に一致するとリストに加える
-        if x % 10 == 0 and y % 10 == 0:
-            base_points.append([x, y, base_he])
-            top_points.append([x, y, top_he])
+        
+        point_flag = False
+        # 白領域から中心地を計算
+        for region in white_regions:
+            start_x,end_x = region
+            
+            if point_flag:
+                break
+            
+            # もし白領域の中にいれば
+            if len(white_regions) == 1 or (start_x <= x and x <= end_x):
+                #?---点群生成継続
+                # 中央値算出
+                center_regin_x = (start_x+end_x)/2
+                
+                if center_regin_x > x:
+                    top_he  +=  heightPixcel
+                    base_he -=  heightPixcel
+                else:                    
+                    top_he  -= heightPixcel
+                    base_he += heightPixcel
+                
+                # 条件に一致するとリストに加える
+                if x % 10 == 0 and y % 10 == 0:
+                    #?---条件に応じて是正
+                    near_point = get_near_point(base_points,[x,y,0])
+                    print("near: ",near_point,end=" : ")
+                    print([x,y,0])
+                    if near_point != None:
+                        base_he = 0
+                        
+                    
+                    base_points.append([x, y, base_he])
+                    top_points.append([x, y, top_he])
+                    point_flag = True
 
     # 輪郭の抽出
     contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
@@ -118,6 +178,7 @@ def createPointCloudFromIMG(image, height, maskimg):
         contour = contour.squeeze()
         if contour.ndim == 2:
             contour_points.append(contour)
+        
     # 側面の点群生成
     side_points = []
     for contour in contour_points:
@@ -127,40 +188,6 @@ def createPointCloudFromIMG(image, height, maskimg):
                 side_points.append([x, y, height / 2])
     
     return base_points,top_points,side_points
-
-
-def get_white_regions(mask, y):
-    """
-    指定されたy座標における白領域の開始点と終了点を取得する関数
-
-    Args:
-        mask (numpy.ndarray): 2値化マスク画像 (白: 255, 黒: 0)
-        y (int): 対象のy座標
-
-    Returns:
-        list: [1つ目の白領域[[start_x, start_y], [end_x, end_y]], ...]形式の座標リスト
-    """
-    # y座標の横ラインの画素値を取得
-    row = mask[y, :]
-    
-    # 白(255)の連続区間を検出
-    regions = []
-    in_region = False
-    start = 0
-
-    for x in range(len(row)):
-        if row[x] == 255 and not in_region:  # 白領域の開始
-            start = x
-            in_region = True
-        elif row[x] == 0 and in_region:  # 白領域の終了
-            regions.append([[start, y], [x - 1, y]])
-            in_region = False
-    
-    # 最後まで白領域が続いていた場合の処理
-    if in_region:
-        regions.append([[start, y], [len(row) - 1, y]])
-
-    return regions
 
 
 def printAry(mesh):
@@ -507,7 +534,6 @@ def save_ply(filename, points):
         for point in points:
             f.write(f"{point[0]} {point[1]} {point[2]}\n")
 
-
 def scaling_obj(mesh_path,rate=1.0):
     """OBJファイルを拡大・縮小する関数
     
@@ -515,6 +541,8 @@ def scaling_obj(mesh_path,rate=1.0):
         mesh_path: OBJファイルのパス
         rate: 拡大・縮小の倍率
     """
+    print(rate)
+    
     if not os.path.exists(mesh_path):
         raise FileNotFoundError(f"ファイルが見つかりません: {mesh_path}")
     
@@ -546,6 +574,7 @@ def scaling_obj(mesh_path,rate=1.0):
     print(f"拡大・縮小後のOBJファイルを保存しました: {output_path}")
 
 
+
 def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     """3Dオブジェクトを生成する
 
@@ -570,7 +599,7 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     _, thresh = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
 
     # 画像全体から3次元点群を生成
-    base_points,top_points,side_points = createPointCloudFromIMG(thresh, height, mask)
+    base_points,top_points,side_points = createPointCloudFromIMG(thresh, height)
     
     # 3次元点群を連結
     all_points = np.vstack((base_points, top_points, side_points))

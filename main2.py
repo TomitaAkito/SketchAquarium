@@ -14,14 +14,13 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 #! 自作関数はそれぞれfunctionフォルダに格納しています
 from function import camera  # カメラを使う
 from function import extraction_fish  # さかなの輪郭を使った処理(抽出・部位推定)
-# from function import createobj as obj  # 3DOBJを作る
+from function import createobj as obj  # 3DOBJを作る
 from function import make_texture as texture # UV関係を作る
 from function import settimer  # 時間測定
 from function import painttool as paint  # ペイントツール
 from function import module # 共通するモジュール
 from function import segmentation as sg # セグメンテーションを行う
-from function import born_3d
-from function import pre_createobj as obj
+from function import born_3d    # ボーンを生成する
 
 #* ======================================================================================== 
 #* グローバル変数と魚の管理
