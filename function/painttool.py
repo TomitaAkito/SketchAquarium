@@ -362,7 +362,7 @@ class PaintApp:
 
 def showExsample():
     """例を表示"""
-    display_image('./inputimg/template(1).png',"例",False)
+    display_image('./inputimg/template(1).png',"[Sketch Aquarium]Paint Tool_example",False)
 
 def exit_msgbox(root):
     """メッセージボックスを終了する
@@ -389,7 +389,7 @@ def No_msgbox(root):
     root.destroy()  # Yesの場合、すべてのウィンドウを閉じる
     g_Flag = False
 
-def display_image(image_path,title="画像選択" ,flag=True,root=None):
+def display_image(image_path,title="[Sketch Aquarium]Select Images" ,flag=True,root=None):
     """imgを表示する
 
     Args:
@@ -405,6 +405,7 @@ def display_image(image_path,title="画像選択" ,flag=True,root=None):
         root = tk.Toplevel(root)  # 既存のTkインスタンスを親にする
 
     root.title(title)
+    root.iconbitmap('./icon.ico')
 
     # 画像を開く
     img = Image.open(image_path)

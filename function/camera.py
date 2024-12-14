@@ -111,16 +111,16 @@ class Application(tk.Frame):
             self.regitFish()
             self.display_image('./output/onlyfish/onlycamera.png')
             
-        if g_cameraFlag:
+        # if g_cameraFlag:
             
-                # 写真を入力として保存
-                filename = module.namingFile("fish_data",".png","./inputimg")
-                filepath = "./inputimg/"+filename
-                cv2.imwrite(filepath,result_img)
-                # Web用写真として保存
-                cv2.imwrite('./static/images/paint.png',result_img)
+        #         # 写真を入力として保存
+        #         filename = module.namingFile("fish_data",".png","./inputimg")
+        #         filepath = "./inputimg/"+filename
+        #         cv2.imwrite(filepath,result_img)
+        #         # Web用写真として保存
+        #         cv2.imwrite('./static/images/paint.png',result_img)
                 
-                return
+        #         return
 
     def regitFish(self):
         """カメラ画像の魚を生成アルゴリズムに反映させる
@@ -154,7 +154,9 @@ class Application(tk.Frame):
 
         if warp is not None:
             warped = self.transform_by4(img, warp[:, 0, :])
-            return warped
+            warped_resized = cv2.resize(warped, (640, 640), interpolation=cv2.INTER_LINEAR)
+        
+            return warped_resized
         else:
             print("四角形の輪郭が見つかりませんでした")
             return None
@@ -214,7 +216,7 @@ class Application(tk.Frame):
         self.vcap.release()
         self.master.destroy()
         
-    def display_image(self, image_path, title="画像選択"):
+    def display_image(self, image_path, title="[Sketch Aquarium]Select Images"):
         """画像を表示する
 
         Args:
@@ -228,6 +230,7 @@ class Application(tk.Frame):
         # 新しいTkウィンドウを作成
         new_root = tk.Tk()
         new_root.title(title)
+        new_root.iconbitmap('./icon.ico')
 
         # 画像を開く
         img = Image.open(image_path)
@@ -243,11 +246,23 @@ class Application(tk.Frame):
         def on_yes():
             global g_cameraFlag
             g_cameraFlag = True
+            
+            # 写真を入力として保存
+            filename = module.namingFile("fish_data",".png","./inputimg")
+            filepath = "./inputimg/"+filename
+            result_img = cv2.imread("./output/camera/camera.png")
+            cv2.imwrite(filepath,result_img)
+            # Web用写真として保存
+            cv2.imwrite('./static/images/paint.png',result_img)
+            
             new_root.quit()  # Yesを選択したらウィンドウを閉じる
             new_root.destroy()
 
+
         # Noボタンの処理
         def on_no():
+            global g_cameraFlag
+            g_cameraFlag = False  # フラグをリセット
             new_root.quit()  # Noを選択したらウィンドウを閉じる
             new_root.destroy()
             start()  # アプリを再起動
