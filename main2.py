@@ -159,25 +159,25 @@ def regitFish():
     
     createTimer.stop()
     
-    # ? ------------------------------------------------------
-    # ? ボーンを生成
-    # ? ------------------------------------------------------
-    module.printTerminal("ボーンを生成", 2)
+    # # ? ------------------------------------------------------
+    # # ? ボーンを生成
+    # # ? ------------------------------------------------------
+    # module.printTerminal("ボーンを生成", 2)
 
-    bornTimer = settimer.timer("-->born-Timer")
+    # bornTimer = settimer.timer("-->born-Timer")
     
-    # セグメンテーションから関節部分を推定
-    mask = cv2.imread(maskPath,cv2.IMREAD_GRAYSCALE)
-    joint_num = sg.SSFromIMG(mask,file)
+    # # セグメンテーションから関節部分を推定
+    # mask = cv2.imread(maskPath,cv2.IMREAD_GRAYSCALE)
+    # joint_num = sg.SSFromIMG(mask,file)
 
-    # 関節の数を基にボーンリストを作成
-    born_list = born_3d.MakeBornList(file,joint_num)
-    print(born_list)
+    # # 関節の数を基にボーンリストを作成
+    # born_list = born_3d.MakeBornList(file,joint_num)
+    # print(born_list)
     
-    # ボーン情報をtxtで出力
-    born_3d.create_bone_structure(born_list,file,"output/born/")
+    # # ボーン情報をtxtで出力
+    # born_3d.create_bone_structure(born_list,file,"output/born/")
 
-    bornTimer.stop()
+    # bornTimer.stop()
     
     #? ------------------------------------------------------
     #? 管理番号の設定
@@ -195,12 +195,12 @@ def regitFish():
     #? さかなのzip化
     #? ------------------------------------------------------
     module.printTerminal("魚をzip化(送信用フォルダ化)",2)
-    zipFish(meshpath,"./output/onlyfish/up2down_" + file + ".png","./output/born/" + file + ".txt")
+    zipFish(meshpath,"./output/onlyfish/up2down_" + file + ".png")
     
     return download_file_new()
 
 #! 魚をZIP化する
-def zipFish(fishPath, pngPath, txtPath):
+def zipFish(fishPath, pngPath):
     """魚をZIP化します"""
     global g_upnum
     
@@ -211,17 +211,16 @@ def zipFish(fishPath, pngPath, txtPath):
     # 情報をターミナルに出力
     print(fishPath)
     print(pngPath)
-    print(txtPath)
     
     # 必須ファイルの存在を確認
-    if not os.path.exists(fishPath) or not os.path.exists(pngPath) or not os.path.exists(txtPath):
+    if not os.path.exists(fishPath) or not os.path.exists(pngPath):
         return jsonify({"error": "File not found"}), 404
     
     # ZIPファイルを作成
     with zipfile.ZipFile(zipPath, 'w') as zipf:
         zipf.write(fishPath, os.path.basename(fishPath))  # 魚のOBJ
         zipf.write(pngPath, os.path.basename(pngPath))    # 魚の画像
-        zipf.write(txtPath, os.path.basename(txtPath))    # ボーン情報
+        # zipf.write(txtPath, os.path.basename(txtPath))    # ボーン情報
 
 
 #! ペイントツールを起動させる(リフレッシュを兼ねてホームページを返す)
@@ -246,7 +245,7 @@ def useCamera():
     """
     # カメラ起動->画像入手
     module.printTerminal("カメラにて撮影を行います")
-    camera.camera_start()
+    camera.start()
     return redirect(url_for('index'))
 
 

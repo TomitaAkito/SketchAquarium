@@ -15,9 +15,6 @@ def contourDetection(imgPath, filename):
         img_cut_with_alpha: 抽出した魚画像（黒領域を透明化したもの）
     """
 
-    import cv2
-    import numpy as np
-
     # 画像をグレースケールで読み込む
     img = cv2.imread(imgPath, cv2.IMREAD_GRAYSCALE)
 

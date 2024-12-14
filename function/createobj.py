@@ -3,7 +3,8 @@ import numpy as np
 import open3d as o3d
 import os
 from scipy.spatial import KDTree
-
+import trimesh
+from numba import jit
 
 
 def calcCenterX(points_3d_base):
@@ -27,6 +28,7 @@ def calcCenterX(points_3d_base):
 
     return result
 
+@jit(nopython=True)
 def get_white_regions(mask, y):
     """
     指定されたy座標における白領域の開始点と終了点を取得する関数
@@ -60,6 +62,7 @@ def get_white_regions(mask, y):
 
     return regions
 
+@jit(nopython=True)
 def get_near_point(points_list,new_point):
     for point in points_list:
         # もしx座標が一致しており，y座標が直近であれば
@@ -159,13 +162,12 @@ def createPointCloudFromIMG(image, height):
                 
                 # 条件に一致するとリストに加える
                 if x % 10 == 0 and y % 10 == 0:
-                    #?---条件に応じて是正
-                    near_point = get_near_point(base_points,[x,y,0])
-                    print("near: ",near_point,end=" : ")
-                    print([x,y,0])
-                    if near_point != None:
-                        base_he = 0
-                        
+                    # #?---条件に応じて是正
+                    # near_point = get_near_point(base_points,[x,y,0])
+                    # print("near: ",near_point,end=" : ")
+                    # print([x,y,0])
+                    # if near_point != None:
+                    #     base_he = 0
                     
                     base_points.append([x, y, base_he])
                     top_points.append([x, y, top_he])
@@ -625,14 +627,29 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     top_mesh = createMesh(top_points)
     mesh = base_mesh + top_mesh
     
-    # mesh = remove_black_region_by_centroid_loop(mesh,cv2.flip(mask, 0) , height)
-    
     # すべての法線ベクトルを外向きに修正
     mesh = make_normals_outward(mesh)
     
+    # 修復用にOpen3Dメッシュをtrimeshに変換
+    vertices = np.asarray(mesh.vertices)
+    faces = np.asarray(mesh.triangles)
+    trimesh_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+
+    # trimeshで修復
+    trimesh_mesh.fill_holes()  # メッシュの穴を埋める
+    trimesh_mesh.remove_degenerate_faces()  # 異常な面を削除
+    trimesh_mesh.remove_duplicate_faces()  # 重複した面を削除
+    trimesh_mesh.remove_unreferenced_vertices()  # 使用されていない頂点を削除
+
+    # 修復後のtrimeshメッシュをOpen3Dメッシュに変換
+    mesh = o3d.geometry.TriangleMesh(
+        vertices=o3d.utility.Vector3dVector(trimesh_mesh.vertices),
+        triangles=o3d.utility.Vector3iVector(trimesh_mesh.faces),
+    )
+    
     # Meshを表示
     # o3d.visualization.draw_geometries([mesh])
-
+    
     # OBJとして出力
     vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors = disassemblyMesh(mesh)
 

@@ -26,7 +26,8 @@ class PaintApp:
             root (Tk): メインウィンドウオブジェクト。
         """
         self.root = root
-        self.root.title("Paint")
+        self.root.title("[Sketch Aquarium]Paint Tool")
+        self.root.iconbitmap('./icon.ico')
         
         # 初期設定
         self.pen_color = "black"  # 初期ペンカラー
