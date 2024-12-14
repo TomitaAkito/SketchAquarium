@@ -155,7 +155,7 @@ class Application(tk.Frame):
         if warp is not None:
             warped = self.transform_by4(img, warp[:, 0, :])
             warped_resized = cv2.resize(warped, (640, 640), interpolation=cv2.INTER_LINEAR)
-        
+            cv2.imwrite("./output/camera/cropping.png",warped_resized)
             return warped_resized
         else:
             print("四角形の輪郭が見つかりませんでした")
