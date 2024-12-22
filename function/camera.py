@@ -16,7 +16,7 @@ global g_cameraFlag
 class Application(tk.Frame):
     global g_directory
     
-    def __init__(self, master, video_source=2):
+    def __init__(self, master, video_source=0):
         """コンストラクタ
 
         Args:
