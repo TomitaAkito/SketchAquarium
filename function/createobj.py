@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import open3d as o3d
 import os
+import time
 from scipy.spatial import KDTree
 import trimesh
 from numba import jit
@@ -501,6 +502,122 @@ def remove_black_region_by_centroid_loop(mesh, mask, height):
     return new_mesh
 
 
+def showRotateMesh(obj, rotation_speed=10.0, interval=0.06, color=(0.4, 0.6, 1.0), background_color=(0.9, 0.9, 0.9)):
+    """
+    Open3Dのオブジェクトを回転しながら表示する関数。
+    - モデルの色を薄い青色に設定。
+    - 背景色を薄い灰色に設定。
+    - キー入力で終了可能。
+    - 光源を有効にして凹凸感を強調。
+
+    Parameters:
+    - obj: o3d.geometry.Geometry型のオブジェクト (点群やメッシュ)
+    - rotation_speed: float, 1ステップごとの回転量 (デフォルトは10.0)
+    - interval: float, 各ステップの間隔 (秒) (デフォルトは0.06)
+    - color: tuple, RGB形式で指定するモデルの色 (デフォルトは(0.4, 0.6, 1.0))
+    - background_color: tuple, RGB形式で指定する背景色 (デフォルトは(0.9, 0.9, 0.9))
+    """
+    # モデルの色を設定
+    if isinstance(obj, o3d.geometry.PointCloud):
+        obj.paint_uniform_color(color)
+    elif isinstance(obj, o3d.geometry.TriangleMesh):
+        obj.paint_uniform_color(color)
+    
+    # ビジュアライザーの作成
+    vis = o3d.visualization.VisualizerWithKeyCallback()
+    vis.create_window()
+    
+    # 背景色の設定
+    opt = vis.get_render_option()
+    opt.background_color = np.asarray(background_color)
+    opt.light_on = True  # ライティングを有効にして凹凸感を強調
+
+    # オブジェクトをビジュアライザーに追加
+    vis.add_geometry(obj)
+    
+    # 終了フラグ
+    exit_flag = [False]
+
+    def close_vis(vis):
+        exit_flag[0] = True
+        return False
+
+    # キーコールバックを登録 (qキーでウィンドウを閉じる)
+    vis.register_key_callback(ord('Q'), close_vis)
+    vis.register_key_callback(ord('q'), close_vis)
+    
+    # 視点コントロールを取得
+    ctr = vis.get_view_control()
+    
+    # 無限ループで回転を続ける
+    while not exit_flag[0]:
+        ctr.rotate(rotation_speed, 0.0)  # カメラを回転
+        vis.update_geometry(obj)
+        vis.poll_events()
+        vis.update_renderer()
+        time.sleep(interval)  # 各ステップ間隔の設定
+
+    # ビジュアライザーの終了
+    vis.destroy_window()
+
+
+def showRotatePointCloud(points, rotation_speed=10.0, interval=0.06, color=(0.4, 0.6, 1.0), background_color=(0.9, 0.9, 0.9)):
+    """
+    NumPy配列から生成されたOpen3Dの点群オブジェクトを360度回転しながら表示する関数。
+    - モデルの色を薄い青色に設定。
+    - 背景色を薄い灰色に設定。
+    - キー入力で終了可能。
+    - 光源を有効にして凹凸感を強調。
+
+    Parameters:
+    - points: NumPy配列、点群データ (Nx3)
+    - rotation_speed: float, 1ステップごとの回転量 (デフォルトは10.0)
+    - interval: float, 各ステップの間隔 (秒) (デフォルトは0.06)
+    - color: tuple, RGB形式で指定するモデルの色 (デフォルトは(0.4, 0.6, 1.0))
+    - background_color: tuple, RGB形式で指定する背景色 (デフォルトは(0.9, 0.9, 0.9))
+    """
+    # NumPy配列をOpen3DのPointCloudオブジェクトに変換
+    point_cloud = o3d.geometry.PointCloud()
+    point_cloud.points = o3d.utility.Vector3dVector(points)
+    point_cloud.paint_uniform_color(color)
+
+    # ビジュアライザーの作成
+    vis = o3d.visualization.VisualizerWithKeyCallback()
+    vis.create_window()
+
+    # 背景色の設定
+    opt = vis.get_render_option()
+    opt.background_color = np.asarray(background_color)
+    opt.light_on = True  # ライティングを有効にして凹凸感を強調
+
+    # オブジェクトをビジュアライザーに追加
+    vis.add_geometry(point_cloud)
+
+    # キーコールバックを登録 (qキーでウィンドウを閉じる)
+    exit_flag = [False]  # 外部からのフラグとしてリストを使用
+
+    def close_vis(vis):
+        exit_flag[0] = True
+        return False
+
+    vis.register_key_callback(ord('Q'), close_vis)
+    vis.register_key_callback(ord('q'), close_vis)
+
+    # 視点コントロールを取得
+    ctr = vis.get_view_control()
+
+    # 無限ループで回転を続ける
+    while not exit_flag[0]:
+        ctr.rotate(rotation_speed, 0.0)  # カメラを回転
+        vis.update_geometry(point_cloud)
+        vis.poll_events()
+        vis.update_renderer()
+        time.sleep(interval)  # 各ステップ間隔の設定
+
+    # ビジュアライザーの終了
+    vis.destroy_window()
+
+
 def showPoint(points_3d):
     
     # NumPy配列からOpen3Dの点群オブジェクトを作成
@@ -575,7 +692,25 @@ def scaling_obj(mesh_path,rate=1.0):
 
     print(f"拡大・縮小後のOBJファイルを保存しました: {output_path}")
 
+def repair_using_trimesh(mesh):
+    # 修復用にOpen3Dメッシュをtrimeshに変換
+    vertices = np.asarray(mesh.vertices)
+    faces = np.asarray(mesh.triangles)
+    trimesh_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
 
+    # trimeshで修復
+    trimesh_mesh.fill_holes()  # メッシュの穴を埋める
+    trimesh_mesh.remove_degenerate_faces()  # 異常な面を削除
+    trimesh_mesh.remove_duplicate_faces()  # 重複した面を削除
+    trimesh_mesh.remove_unreferenced_vertices()  # 使用されていない頂点を削除
+
+    # 修復後のtrimeshメッシュをOpen3Dメッシュに変換
+    mesh = o3d.geometry.TriangleMesh(
+        vertices=o3d.utility.Vector3dVector(trimesh_mesh.vertices),
+        triangles=o3d.utility.Vector3iVector(trimesh_mesh.faces),
+    )
+    
+    return mesh
 
 def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     """3Dオブジェクトを生成する
@@ -621,6 +756,7 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     # showPoint(base_points)
     # showPoint(top_points)
     # showPoint(all_points)
+    # showRotatePointCloud(all_points)
     
     # メッシュを生成
     base_mesh = createMesh(base_points)
@@ -630,25 +766,12 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     # すべての法線ベクトルを外向きに修正
     mesh = make_normals_outward(mesh)
     
-    # 修復用にOpen3Dメッシュをtrimeshに変換
-    vertices = np.asarray(mesh.vertices)
-    faces = np.asarray(mesh.triangles)
-    trimesh_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-
-    # trimeshで修復
-    trimesh_mesh.fill_holes()  # メッシュの穴を埋める
-    trimesh_mesh.remove_degenerate_faces()  # 異常な面を削除
-    trimesh_mesh.remove_duplicate_faces()  # 重複した面を削除
-    trimesh_mesh.remove_unreferenced_vertices()  # 使用されていない頂点を削除
-
-    # 修復後のtrimeshメッシュをOpen3Dメッシュに変換
-    mesh = o3d.geometry.TriangleMesh(
-        vertices=o3d.utility.Vector3dVector(trimesh_mesh.vertices),
-        triangles=o3d.utility.Vector3iVector(trimesh_mesh.faces),
-    )
+    # メッシュを修正したい
+    mesh = repair_using_trimesh(mesh)
     
     # Meshを表示
     # o3d.visualization.draw_geometries([mesh])
+    showRotateMesh(mesh)
     
     # OBJとして出力
     vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors = disassemblyMesh(mesh)

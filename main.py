@@ -145,8 +145,9 @@ def main():
 
     result = []
     
+    # さかなをせいせい(nセット)
     for j in range(1000):
-        # 魚を生成する
+        # 魚を生成する(10種類)
         for i in range(1,11):
             timer = settimer.timer("-->Timer")
             regitFish(0,i)
