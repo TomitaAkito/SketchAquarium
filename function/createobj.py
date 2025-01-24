@@ -771,7 +771,7 @@ def creating3D(filePath, maskPath, filename, height=100, smoothFlag=False):
     
     # Meshを表示
     # o3d.visualization.draw_geometries([mesh])
-    showRotateMesh(mesh)
+    # showRotateMesh(mesh)
     
     # OBJとして出力
     vertices, uvs, normals, faceVertIDs, uvIDs, normalIDs, vertexColors = disassemblyMesh(mesh)
